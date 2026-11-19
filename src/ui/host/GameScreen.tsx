@@ -112,7 +112,6 @@ export function GameScreen({ source, stateStore, logger }: Props) {
         randomBytes,
         portCount: portCountOf(source),
         layout: source.kind === 'rom' ? source.system.layout : 'n64',
-        hostPortLocked: nativeControls,
       });
       session = s;
       // No celular, o host joga pelos mesmos controles touch do convidado.

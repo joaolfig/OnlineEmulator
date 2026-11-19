@@ -77,6 +77,9 @@ export class FakeEmulator implements Emulator {
     this.pads.set(port, EMPTY_PAD);
   }
 
+  /** O modo teste não tem controles próprios: tudo vem do app. */
+  setLocalPort(): void {}
+
   setSpeed(multiplier: number): void {
     this.speed = Math.max(1, Math.round(multiplier));
   }

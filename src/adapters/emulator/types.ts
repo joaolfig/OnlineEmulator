@@ -10,6 +10,11 @@ export interface Emulator {
   /** Aplica o estado do controle numa porta (só envia ao emulador o que mudou). */
   setInput(port: number, pad: PadState): void;
   releaseAll(port: number): void;
+  /**
+   * Porta controlada pelo teclado/controles do próprio PC quando eles são do emulador
+   * (EmulatorJS no PC). null = espectador: os controles do PC não comandam ninguém.
+   */
+  setLocalPort(port: number | null): void;
   /** Vídeo + áudio do jogo, para transmitir aos convidados. */
   captureStream(fps: number): Promise<MediaStream>;
   /** Velocidade do jogo: 1 = normal, 2 = até 2x mais rápido etc. */

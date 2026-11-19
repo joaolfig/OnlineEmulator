@@ -1,6 +1,7 @@
 import { config } from '../../config';
 import type { PadState } from '../../core/input/pad';
 import { installAudioTap, tappedAudio } from '../media/audioTap';
+import { routeNativeInput } from './nativeRouting';
 import { PadApplier } from './padApplier';
 import type { SystemInfo } from './systems';
 import { EmulatorLoadError, type Emulator, type EmulatorSaves } from './types';
@@ -61,6 +62,8 @@ export interface EmulatorJSOptions {
 export class EmulatorJSAdapter implements Emulator {
   private ejs: EjsEmulator | null = null;
   private padApplier: PadApplier | null = null;
+  /** Porta dos controles do PC (segue a porta do host na sala). */
+  private localPort: number | null = 0;
   private readonly cleanup: (() => void)[] = [];
 
   constructor(private readonly options: EmulatorJSOptions) {}
@@ -92,10 +95,18 @@ export class EmulatorJSAdapter implements Emulator {
           const ejs = window.EJS_emulator;
           if (!ejs) return reject(new EmulatorLoadError('EmulatorJS iniciou sem expor a instância'));
           this.ejs = ejs;
-          this.padApplier = new PadApplier(
-            (port, index, value) => ejs.gameManager.simulateInput(port, index, value),
-            this.options.system.mapping,
-          );
+          const gm = ejs.gameManager;
+          const simulate = gm.simulateInput.bind(gm);
+          // Inputs do app (convidados e botões touch) vão direto para a porta certa.
+          this.padApplier = new PadApplier(simulate, this.options.system.mapping);
+          if (this.options.nativeControls) {
+            // Inputs do próprio EmulatorJS (teclado/controles do PC, "jogador 1" do menu 🎮) passam por aqui:
+            // são redirecionados para a porta do host, ou ignorados se ele estiver como espectador.
+            gm.simulateInput = (player, index, value) => {
+              const port = routeNativeInput(player, index, this.localPort);
+              if (port !== null) simulate(port, index, value);
+            };
+          }
           resolve();
         },
       } satisfies Partial<Window>);
@@ -105,6 +116,10 @@ export class EmulatorJSAdapter implements Emulator {
       script.onerror = () => reject(new EmulatorLoadError('Não foi possível baixar o EmulatorJS'));
       document.body.append(script);
     });
+  }
+
+  setLocalPort(port: number | null): void {
+    this.localPort = port;
   }
 
   setInput(port: number, pad: PadState): void {

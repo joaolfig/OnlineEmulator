@@ -102,8 +102,7 @@ export const t = {
     controlsHint:
       'Seus controles: WASD/setas, K = A, J = B, L = Z, Enter = Start, Q/E = L/R, T/F/G/H = C. Controle USB/Bluetooth também funciona.',
     nativeControlsHint:
-      'Controles do EmulatorJS: para ver ou mudar as teclas e os controles de cada jogador neste PC, use o botão de controle (🎮) na barra do emulador. Você joga como P1.',
-    hostLocked: 'Você (P1 fixo)',
+      'Controles do EmulatorJS: para ver ou mudar as teclas e os controles deste PC, use o botão de controle (🎮) na barra do emulador. Eles comandam a porta que você escolher em Jogadores; como Espectador, este PC só mostra o jogo.',
   },
 
   time: {

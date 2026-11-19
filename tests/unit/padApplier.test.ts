@@ -101,3 +101,22 @@ describe('detectSystem', () => {
 
   it('formato desconhecido', () => expect(detectSystem('foto.png')).toBeNull());
 });
+
+describe('controles do PC do host (EmulatorJS) seguem a porta dele', () => {
+  it('"jogador 1" do menu vai para a porta do host', async () => {
+    const { routeNativeInput } = await import('../../src/adapters/emulator/nativeRouting');
+    expect(routeNativeInput(0, 8, 0)).toBe(0);
+    expect(routeNativeInput(0, 8, 2)).toBe(2);
+  });
+
+  it('host espectador: o PC não controla ninguém, mas os atalhos continuam', async () => {
+    const { routeNativeInput } = await import('../../src/adapters/emulator/nativeRouting');
+    expect(routeNativeInput(0, 8, null)).toBeNull();
+    expect(routeNativeInput(0, 27, null)).toBe(0); // acelerar, salvar estado…
+  });
+
+  it('outros jogadores configurados no menu 🎮 do PC não mudam', async () => {
+    const { routeNativeInput } = await import('../../src/adapters/emulator/nativeRouting');
+    expect(routeNativeInput(2, 8, null)).toBe(2);
+  });
+});

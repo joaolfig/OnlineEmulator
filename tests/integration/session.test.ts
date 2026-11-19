@@ -14,6 +14,11 @@ class RecordingEmulator implements Emulator {
   readonly inputs = new Map<number, PadState>();
   readonly released: number[] = [];
   speed = 1;
+  /** Porta dos controles do próprio PC (null = espectador). */
+  localPort: number | null = 0;
+  setLocalPort(port: number | null) {
+    this.localPort = port;
+  }
   start = () => Promise.resolve();
   setSpeed(multiplier: number) {
     this.speed = multiplier;
@@ -38,9 +43,7 @@ let clock = 0;
 const now = () => clock;
 const sessions: { close(): void }[] = [];
 
-async function setup(
-  options: Partial<Pick<HostSessionDeps, 'portCount' | 'layout' | 'hostPortLocked'>> = {},
-) {
+async function setup(options: Partial<Pick<HostSessionDeps, 'portCount' | 'layout'>> = {}) {
   const network = new MemoryNetwork();
   const emulator = new RecordingEmulator();
   const logger = new Logger();
@@ -224,18 +227,25 @@ describe('host + convidados (transporte em memória)', () => {
     expect((await n64.addGuest('Bia')).layout.value).toBe('n64');
   });
 
-  it('com os controles do EmulatorJS no PC, o host fica fixo no P1', async () => {
-    const { host, addGuest } = await setup({ hostPortLocked: true });
-    const ana = await addGuest('Ana');
-    const anaId = host.room.value.participants[1]?.id ?? '';
-    host.setPort(anaId, 0); // tentaria trocar com o host
-    host.setPort(HOST_ID, 2);
-    expect(ana.port.value).toBe(1);
-    expect(host.room.value.participants[0]?.port).toBe(0);
-    // Trocar entre convidados continua valendo.
-    host.setPort(anaId, 3);
+  it('PC como tela e celular como controle: host espectador, celular no P1', async () => {
+    const { host, emulator, addGuest } = await setup();
+    const phone = await addGuest('Celular', 'controller');
+    host.setPort(HOST_ID, null);
+    expect(emulator.localPort).toBeNull(); // o teclado do PC não controla ninguém
+    host.setPort(host.room.value.participants[1]?.id ?? '', 0);
     await flush();
-    expect(ana.port.value).toBe(3);
+    expect(phone.port.value).toBe(0);
+    phone.tick(A);
+    expect(emulator.inputs.get(0)).toEqual(A);
+  });
+
+  it('os controles do PC seguem a porta do host (inclusive numa troca)', async () => {
+    const { host, emulator, addGuest } = await setup();
+    await addGuest('Ana');
+    host.setPort(host.room.value.participants[1]?.id ?? '', 0); // Ana pega o P1, host vai para o P2
+    expect(emulator.localPort).toBe(1);
+    host.setPort(HOST_ID, 3);
+    expect(emulator.localPort).toBe(3);
   });
 
   it('sala inexistente gera erro amigável', async () => {

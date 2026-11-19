@@ -48,11 +48,6 @@ export interface HostSessionDeps {
   readonly portCount?: number;
   /** Botões que os convidados devem ver na tela. */
   readonly layout?: ControllerLayout;
-  /**
-   * true quando o teclado/controles do PC do host são do EmulatorJS: eles controlam sempre o P1,
-   * então o host fica fixo no P1 e ninguém mais pode ir para lá.
-   */
-  readonly hostPortLocked?: boolean;
   readonly now?: () => number;
 }
 
@@ -96,11 +91,6 @@ export class HostSession {
     this.room.value = createRoom(deps.hostName, deps.portCount ?? config.portCount);
   }
 
-  /** P1 preso ao host (controles do EmulatorJS no PC). */
-  get hostPortLocked(): boolean {
-    return this.deps.hostPortLocked ?? false;
-  }
-
   get guestCount(): number {
     return [...this.guests.values()].filter((g) => g.joined).length;
   }
@@ -141,15 +131,14 @@ export class HostSession {
     const after = setPort(before, participantId, port);
     const changes = portChanges(before, after);
     if (changes.length === 0) return;
-    if (this.deps.hostPortLocked && changes.some((c) => c.id === HOST_ID)) {
-      this.deps.logger.warn('O P1 fica com o host: o teclado e os controles do PC são do EmulatorJS');
-      return;
-    }
     for (const { from, to } of changes) {
       if (from !== null) this.deps.emulator.releaseAll(from);
       if (to !== null) this.deps.emulator.releaseAll(to);
     }
     this.room.value = after;
+    // Os controles do próprio PC do host (teclado/controles do EmulatorJS) seguem a porta dele.
+    const hostChange = changes.find((c) => c.id === HOST_ID);
+    if (hostChange) this.deps.emulator.setLocalPort(hostChange.to);
     for (const { id, to } of changes) this.send(id, { type: 'port', port: to });
     this.broadcastLobby();
     const names = changes.map(({ id, to }) => {
