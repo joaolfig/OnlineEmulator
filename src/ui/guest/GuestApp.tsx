@@ -192,7 +192,9 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
           {hasPort ? t.guest.playerBadge(port) : '…'}
         </div>
       )}
-      {showTouch && <TouchControls state={touch} large={mode === 'controller'} />}
+      {showTouch && (
+        <TouchControls state={touch} large={mode === 'controller'} layout={session.layout.value} />
+      )}
       <div class="hud">
         <span class="pill" data-testid="who" style={{ borderColor: playerColor }}>
           {port === undefined ? t.guest.connecting : t.guest.you(port)}

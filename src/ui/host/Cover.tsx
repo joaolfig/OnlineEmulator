@@ -1,29 +1,29 @@
 import { useEffect, useState } from 'preact/hooks';
-import { n64BoxArtUrl } from '../../adapters/catalog/n64Catalog';
 import { initials } from '../../core/catalog/thumbnails';
 
 interface Props {
   readonly title: string;
-  readonly catalogName: string | null | undefined;
+  /** Capa do catálogo do libretro, quando houver. */
+  readonly url: string | null;
   /** Capa escolhida pelo usuário (tem prioridade sobre a do catálogo). */
   readonly custom: Blob | undefined;
 }
 
 /** Capa do jogo: personalizada > catálogo do libretro > iniciais. */
-export function Cover({ title, catalogName, custom }: Props) {
+export function Cover({ title, url, custom }: Props) {
   const [customUrl, setCustomUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!custom) return setCustomUrl(null);
-    const url = URL.createObjectURL(custom);
-    setCustomUrl(url);
-    return () => URL.revokeObjectURL(url);
+    const objectUrl = URL.createObjectURL(custom);
+    setCustomUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
   }, [custom]);
 
-  useEffect(() => setFailed(false), [catalogName, customUrl]);
+  useEffect(() => setFailed(false), [url, customUrl]);
 
-  const src = customUrl ?? (catalogName ? n64BoxArtUrl(catalogName) : null);
+  const src = customUrl ?? url;
   if (!src || failed) {
     return (
       <div class="cover cover-placeholder" aria-hidden="true">

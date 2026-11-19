@@ -1,4 +1,5 @@
 import type { Button } from '../../core/input/pad';
+import type { ControllerLayout } from '../../core/input/layout';
 import { N64_BUTTON_INDEX } from './n64map';
 
 /**
@@ -38,6 +39,12 @@ export interface SystemInfo {
   readonly label: string;
   readonly extensions: readonly string[];
   readonly mapping: PadMapping;
+  /** Botões que o convidado vê na tela. */
+  readonly layout: ControllerLayout;
+  /** Quantas pessoas jogam ao mesmo tempo (portas do console, sem adaptadores). */
+  readonly ports: number;
+  /** Pasta do sistema no servidor de capas do libretro (por extensão, quando muda: GB × GBC). */
+  readonly thumbnails: string | Readonly<Record<string, string>>;
 }
 
 export const N64_SYSTEM: SystemInfo = {
@@ -45,19 +52,43 @@ export const N64_SYSTEM: SystemInfo = {
   label: 'Nintendo 64',
   extensions: ['z64', 'n64', 'v64'],
   mapping: N64_MAPPING,
+  layout: 'n64',
+  ports: 4,
+  thumbnails: 'Nintendo - Nintendo 64',
 };
+
+const retro = (
+  id: string,
+  label: string,
+  extensions: readonly string[],
+  ports: number,
+  thumbnails: SystemInfo['thumbnails'],
+): SystemInfo => ({ id, label, extensions, mapping: RETROPAD, layout: 'retropad', ports, thumbnails });
 
 export const SYSTEMS: readonly SystemInfo[] = [
   N64_SYSTEM,
-  { id: 'snes', label: 'Super Nintendo', extensions: ['sfc', 'smc'], mapping: RETROPAD },
-  { id: 'nes', label: 'NES', extensions: ['nes'], mapping: RETROPAD },
-  { id: 'gba', label: 'Game Boy Advance', extensions: ['gba'], mapping: RETROPAD },
-  { id: 'gb', label: 'Game Boy / Color', extensions: ['gb', 'gbc'], mapping: RETROPAD },
-  { id: 'segaMD', label: 'Mega Drive', extensions: ['md', 'gen', 'smd'], mapping: RETROPAD },
-  { id: 'segaMS', label: 'Master System', extensions: ['sms'], mapping: RETROPAD },
-  { id: 'segaGG', label: 'Game Gear', extensions: ['gg'], mapping: RETROPAD },
-  { id: 'pce', label: 'PC Engine', extensions: ['pce'], mapping: RETROPAD },
+  retro('snes', 'Super Nintendo', ['sfc', 'smc'], 2, 'Nintendo - Super Nintendo Entertainment System'),
+  retro('nes', 'NES', ['nes'], 2, 'Nintendo - Nintendo Entertainment System'),
+  retro('gba', 'Game Boy Advance', ['gba'], 1, 'Nintendo - Game Boy Advance'),
+  retro('gb', 'Game Boy / Color', ['gb', 'gbc'], 1, {
+    gb: 'Nintendo - Game Boy',
+    gbc: 'Nintendo - Game Boy Color',
+  }),
+  retro('segaMD', 'Mega Drive', ['md', 'gen', 'smd'], 2, 'Sega - Mega Drive - Genesis'),
+  retro('segaMS', 'Master System', ['sms'], 2, 'Sega - Master System - Mark III'),
+  retro('segaGG', 'Game Gear', ['gg'], 1, 'Sega - Game Gear'),
+  retro('pce', 'PC Engine', ['pce'], 1, 'NEC - PC Engine - TurboGrafx 16'),
 ];
+
+export const systemById = (id: string | undefined): SystemInfo | null =>
+  SYSTEMS.find((s) => s.id === id) ?? null;
+
+/** Pasta de capas do libretro para este arquivo. */
+export function thumbnailSystem(system: SystemInfo, fileName: string): string {
+  if (typeof system.thumbnails === 'string') return system.thumbnails;
+  const extension = fileName.split('.').pop()?.toLowerCase() ?? '';
+  return system.thumbnails[extension] ?? Object.values(system.thumbnails)[0] ?? '';
+}
 
 /** Descobre o console pela extensão do arquivo (ex.: "Zelda.sfc" → SNES). */
 export function detectSystem(fileName: string): SystemInfo | null {

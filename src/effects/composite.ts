@@ -24,7 +24,7 @@ import { averageColor, brightCentroid, damp, degToRad, tiltTarget } from './math
 import type { ExperimentContext, ExperimentInstance, ParamDef } from './types';
 
 /** Configuração fixa da TV de tubo (escolhida nos testes do laboratório). */
-const CRT = { softness: 0.8, scanlines: 0.5, curvature: 0.12, ambilight: 0.7 } as const;
+const CRT = { softness: 0.8, scanlines: 0.5, curvature: 0.12, ambilight: 0.45 } as const;
 /** Inclinação: ângulo máximo e rapidez da resposta. */
 const TILT = { maxAngle: 8, smoothing: 6 } as const;
 

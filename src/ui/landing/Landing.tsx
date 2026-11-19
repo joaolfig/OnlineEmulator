@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { SYSTEMS } from '../../adapters/emulator/systems';
 import { config } from '../../config';
 import { isValidRoomCode, normalizeRoomCode } from '../../core/util/roomCode';
 import { t } from '../strings';
@@ -18,6 +19,14 @@ export function Landing() {
       <header class="stack">
         <h1>{t.appName}</h1>
         <p class="muted">{t.tagline}</p>
+        <ul class="console-list" aria-label={t.consolesTitle}>
+          {SYSTEMS.map((s) => (
+            <li key={s.id}>
+              {s.label}
+              <span class="muted small"> · {t.landing.players(s.ports)}</span>
+            </li>
+          ))}
+        </ul>
       </header>
       <section class="panel stack">
         <h2>{t.landing.createRoom}</h2>

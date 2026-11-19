@@ -3,7 +3,7 @@ import type { Emulator } from '../../adapters/emulator/types';
 import { PeerJsHostTransport } from '../../adapters/net/peerjs';
 import { gunzip, gzip } from '../../adapters/storage/compression';
 import type { StateStore } from '../../adapters/storage/stateStore';
-import { createEmulator, gameTitle, type GameSource } from '../../app/host/gameSource';
+import { createEmulator, gameTitle, portCountOf, type GameSource } from '../../app/host/gameSource';
 import { HostSession } from '../../app/host/hostSession';
 import { RewindBuffer } from '../../app/host/rewindBuffer';
 import { SaveKeeper } from '../../app/host/saveKeeper';
@@ -43,6 +43,9 @@ export function GameScreen({ source, stateStore, logger }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const isTouch = useMemo(isTouchDevice, []);
+  // No PC, os controles do host ficam com o EmulatorJS (teclado padrão dele e o menu 🎮 de configurar
+  // os comandos de cada jogador). No celular e no modo teste, o app cuida dos controles.
+  const nativeControls = !isTouch && source.kind === 'rom';
   const touch = useMemo(createTouchState, []);
   /** Último estado do controle do host, para o efeito visual reagir a ele. */
   const lastPad = useRef<PadState>(EMPTY_PAD);
@@ -54,7 +57,7 @@ export function GameScreen({ source, stateStore, logger }: Props) {
 
   // Liga emulador → (continua o estado salvo) → saves automáticos → captura → sala → controles locais.
   useEffect(() => {
-    const emulator = createEmulator(source);
+    const emulator = createEmulator(source, nativeControls);
     let session: HostSession | null = null;
     let keeper: SaveKeeper | null = null;
     let rewind: RewindBuffer | null = null;
@@ -107,13 +110,17 @@ export function GameScreen({ source, stateStore, logger }: Props) {
         logger,
         hostName: t.host.hostName,
         randomBytes,
+        portCount: portCountOf(source),
+        layout: source.kind === 'rom' ? source.system.layout : 'n64',
+        hostPortLocked: nativeControls,
       });
       session = s;
       // No celular, o host joga pelos mesmos controles touch do convidado.
       stopInput = startInputLoop(
         (pad) => {
           lastPad.current = pad;
-          s.setLocalPad(pad);
+          // Com os controles do EmulatorJS, o app só lê o controle (para a inclinação), sem aplicar.
+          if (!nativeControls) s.setLocalPad(pad);
         },
         isTouch ? [() => readTouch(touch)] : [],
       );
@@ -128,11 +135,11 @@ export function GameScreen({ source, stateStore, logger }: Props) {
       disposed = true;
       stopInput?.();
       keeper?.stop();
-      rewind?.stop();
+      rewind?.dispose();
       session?.close();
       emulator.destroy();
     };
-  }, [source, stateStore, logger, isTouch, touch]);
+  }, [source, stateStore, logger, isTouch, touch, nativeControls]);
 
   // Aba em segundo plano: avisa (o jogo pausa para todos) e salva tudo, por garantia.
   // Fechar a aba com amigos conectados: pede confirmação.
@@ -199,7 +206,9 @@ export function GameScreen({ source, stateStore, logger }: Props) {
               }}
             />
             {/* Controles na tela só em tela cheia: em pé, o jogo fica pequeno demais para dividir espaço. */}
-            {isTouch && fullscreen && <TouchControls state={touch} />}
+            {isTouch && fullscreen && (
+              <TouchControls state={touch} layout={source.kind === 'rom' ? source.system.layout : 'n64'} />
+            )}
             <button
               class="stage-fullscreen"
               onClick={() => void toggleFullscreen()}
@@ -209,7 +218,9 @@ export function GameScreen({ source, stateStore, logger }: Props) {
             </button>
           </div>
           {failed && <p class="err">{t.host.roomError}</p>}
-          <p class="muted">{isTouch ? t.host.touchHint : t.host.controlsHint}</p>
+          <p class="muted">
+            {isTouch ? t.host.touchHint : nativeControls ? t.host.nativeControlsHint : t.host.controlsHint}
+          </p>
         </section>
         {running && <TimePanel session={running.session} rewind={running.rewind} />}
         {running && <VideoPanel session={running.session} stream={running.stream} />}

@@ -32,9 +32,18 @@ describe('parseGuestMessage', () => {
 });
 
 describe('parseHostMessage', () => {
-  it('aceita welcome com porta e como espectador', () => {
-    expect(parseHostMessage({ type: 'welcome', port: 2 })).toEqual({ type: 'welcome', port: 2 });
-    expect(parseHostMessage({ type: 'welcome', port: null })).toEqual({ type: 'welcome', port: null });
+  it('aceita welcome com porta e como espectador (layout n64 se não vier)', () => {
+    expect(parseHostMessage({ type: 'welcome', port: 2 })).toEqual({
+      type: 'welcome',
+      port: 2,
+      layout: 'n64',
+    });
+    expect(parseHostMessage({ type: 'welcome', port: null, layout: 'retropad' })).toEqual({
+      type: 'welcome',
+      port: null,
+      layout: 'retropad',
+    });
+    expect(parseHostMessage({ type: 'welcome', port: 1, layout: 'ps5' })).toBeNull();
   });
 
   it.each([

@@ -1,6 +1,6 @@
 import { EmulatorJSAdapter } from '../../adapters/emulator/emulatorjs';
 import { FakeEmulator } from '../../adapters/emulator/fake';
-import { N64_SYSTEM } from '../../adapters/emulator/systems';
+import type { SystemInfo } from '../../adapters/emulator/systems';
 import type { Emulator } from '../../adapters/emulator/types';
 import { config } from '../../config';
 
@@ -10,6 +10,7 @@ export type GameSource =
       readonly kind: 'rom';
       readonly romId: string;
       readonly file: File;
+      readonly system: SystemInfo;
       /** Nome interno usado pelo EmulatorJS para o save do cartucho. */
       readonly name: string;
       /** Nome bonito para exibir (do catálogo, quando houver). */
@@ -19,12 +20,24 @@ export type GameSource =
     }
   | { readonly kind: 'test' };
 
-/** A sala de verdade ainda é só N64 (os outros consoles estão no laboratório). */
-export function createEmulator(source: GameSource): Emulator {
+/**
+ * @param nativeControls true no PC: o teclado/controles do host ficam com o EmulatorJS (e o menu
+ *   dele de configurar comandos); false no celular: o host joga pelos botões touch do app.
+ */
+export function createEmulator(source: GameSource, nativeControls: boolean): Emulator {
   return source.kind === 'rom'
-    ? new EmulatorJSAdapter({ rom: source.file, system: N64_SYSTEM, gameName: source.name })
+    ? new EmulatorJSAdapter({
+        rom: source.file,
+        system: source.system,
+        gameName: source.name,
+        nativeControls,
+      })
     : new FakeEmulator(config.portCount);
 }
+
+/** Portas do console deste jogo (o modo teste simula um N64). */
+export const portCountOf = (source: GameSource): number =>
+  source.kind === 'rom' ? source.system.ports : config.portCount;
 
 export const gameTitle = (source: GameSource): string =>
   source.kind === 'rom' ? source.title : 'Modo teste';

@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { config } from '../../config';
+import { CONTROLLER_LAYOUTS } from '../input/layout';
 import { DEVICE_MODES } from '../room/room';
 
 // Mensagens do canal de controle (JSON, confiável). Os inputs vão por outro canal (inputCodec.ts).
@@ -31,7 +32,12 @@ export type GuestMessage = v.InferOutput<typeof GuestMessageSchema>;
 const LobbyPlayer = v.object({ name: Name, port: Port, isHost: v.boolean() });
 
 export const HostMessageSchema = v.variant('type', [
-  v.object({ type: v.literal('welcome'), port: Port }),
+  v.object({
+    type: v.literal('welcome'),
+    port: Port,
+    // Opcional para continuar compatível com hosts que ainda não mandam o layout.
+    layout: v.optional(v.picklist(CONTROLLER_LAYOUTS), 'n64'),
+  }),
   v.object({ type: v.literal('port'), port: Port }),
   v.object({ type: v.literal('lobby'), players: v.pipe(v.array(LobbyPlayer), v.maxLength(32)) }),
   v.object({ type: v.literal('pong'), ts: Timestamp }),

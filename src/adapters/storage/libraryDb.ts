@@ -12,7 +12,9 @@ export interface RomMeta {
   readonly size: number;
   readonly addedAt: number;
   readonly lastPlayedAt: number | null;
-  /** Nome oficial no catálogo; null = não encontrado; undefined = ainda não verificado (entradas antigas). */
+  /** Console (id do EmulatorJS). Ausente nas entradas antigas, que eram todas de N64. */
+  readonly system?: string;
+  /** Nome oficial no catálogo (só N64); null = não encontrado; undefined = ainda não verificado. */
   readonly catalogName?: string | null;
 }
 

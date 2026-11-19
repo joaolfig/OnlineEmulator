@@ -1,4 +1,5 @@
 import { useRef, useState } from 'preact/hooks';
+import type { ControllerLayout } from '../../core/input/layout';
 import { buttonMask, clampAxis, AXIS_LIMIT, type Button, type PadState } from '../../core/input/pad';
 
 /** Estado mutável do touch, lido a cada frame pelo laço de input (sem re-render por toque). */
@@ -14,7 +15,10 @@ export const readTouch = (state: TouchState): PadState => ({ ...state });
 const STICK_RADIUS = 55;
 
 // [rótulo, botão, right %, bottom %, tamanho px]
-const LAYOUT: readonly (readonly [string, Button, number, number, number])[] = [
+type ButtonSpec = readonly [string, Button, number, number, number];
+
+/** Controle de N64: A, B, Z, Start, L, R e os quatro C. */
+const N64_BUTTONS: readonly ButtonSpec[] = [
   ['A', 'A', 6, 18, 76],
   ['B', 'B', 20, 30, 64],
   ['Z', 'Z', 30, 10, 56],
@@ -27,15 +31,41 @@ const LAYOUT: readonly (readonly [string, Button, number, number, number])[] = [
   ['C▶', 'CRIGHT', 5, 53, 40],
 ];
 
+/**
+ * Consoles 2D: losango A/B/X/Y (como no SNES), Select, Start, L e R. O analógico da esquerda vira
+ * direcional. Os botões do app viram os do console: C▲ = X, C◀ = Y, Z = Select (ver systems.ts).
+ */
+const RETROPAD_BUTTONS: readonly ButtonSpec[] = [
+  ['X', 'CUP', 13, 40, 58],
+  ['A', 'A', 4, 26, 64],
+  ['B', 'B', 13, 11, 64],
+  ['Y', 'CLEFT', 22, 26, 58],
+  ['Start', 'START', 44, 4, 52],
+  ['Select', 'Z', 55, 4, 52],
+  ['L', 'L', 88, 82, 52],
+  ['R', 'R', 4, 82, 52],
+];
+
+const BUTTONS_BY_LAYOUT: Readonly<Record<ControllerLayout, readonly ButtonSpec[]>> = {
+  n64: N64_BUTTONS,
+  retropad: RETROPAD_BUTTONS,
+};
+
 /** No modo "só controle" a tela inteira é do controle, então os botões crescem. */
 const LARGE_SCALE = 1.35;
 
-export function TouchControls({ state, large = false }: { state: TouchState; large?: boolean }) {
+interface TouchControlsProps {
+  readonly state: TouchState;
+  readonly large?: boolean;
+  readonly layout?: ControllerLayout;
+}
+
+export function TouchControls({ state, large = false, layout = 'n64' }: TouchControlsProps) {
   const scale = large ? LARGE_SCALE : 1;
   return (
     <div class="touch">
       <Stick state={state} />
-      {LAYOUT.map(([label, button, right, bottom, size]) => (
+      {BUTTONS_BY_LAYOUT[layout].map(([label, button, right, bottom, size]) => (
         <TouchButton
           key={button}
           {...{ label, button, right, bottom, state }}

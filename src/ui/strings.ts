@@ -6,7 +6,8 @@ import type { EffectId } from '../effects/catalog';
 
 export const t = {
   appName: 'OnlineEmulator',
-  tagline: 'Jogue N64 online com amigos, direto no navegador.',
+  tagline: 'Jogue videogames clássicos online com amigos, direto no navegador.',
+  consolesTitle: 'Consoles',
 
   effects: {
     label: 'Efeitos visuais',
@@ -23,13 +24,15 @@ export const t = {
     createRoom: 'Criar sala',
     createRoomHint: 'Você roda o jogo no seu PC e os amigos entram pelo link.',
     joinRoom: 'Entrar numa sala',
+    players: (n: number) => (n === 1 ? '1 jogador' : `até ${n} jogadores`),
     codePlaceholder: 'Código (ex.: K7QX2M)',
     join: 'Entrar',
   },
 
   library: {
     title: 'Biblioteca',
-    empty: 'Nenhum jogo ainda. Adicione a ROM do seu jogo (ela fica salva só neste navegador).',
+    empty:
+      'Nenhum jogo ainda. Adicione a ROM do seu jogo: Nintendo 64, Super Nintendo, NES, Game Boy, Game Boy Advance, Mega Drive, Master System, Game Gear ou PC Engine (ela fica salva só neste navegador).',
     addRom: 'Adicionar ROM',
     play: 'Jogar',
     playFromStart: 'Jogar do início',
@@ -98,6 +101,9 @@ export const t = {
     saving: 'Salvando…',
     controlsHint:
       'Seus controles: WASD/setas, K = A, J = B, L = Z, Enter = Start, Q/E = L/R, T/F/G/H = C. Controle USB/Bluetooth também funciona.',
+    nativeControlsHint:
+      'Controles do EmulatorJS: para ver ou mudar as teclas e os controles de cada jogador neste PC, use o botão de controle (🎮) na barra do emulador. Você joga como P1.',
+    hostLocked: 'Você (P1 fixo)',
   },
 
   time: {
@@ -107,10 +113,10 @@ export const t = {
       'Acelerado para todos. "Até" essa velocidade: se o PC não aguentar, o jogo acelera o quanto der. O som fica acelerado também.',
     rewind: 'Voltar no tempo',
     step: (seconds: number) => (seconds < 60 ? `${seconds} s` : `${seconds / 60} min`),
-    notYet: 'Ainda não há um ponto tão antigo: o jogo guarda um ponto a cada 10 segundos.',
+    notYet: 'Ainda não há um ponto tão antigo: o jogo guarda um ponto a cada minuto.',
     undo: 'Desfazer',
     rewindHint: (reach: number, memory: string) =>
-      `Dá para voltar até ${reach} s (pontos a cada 10 s, últimos 5 min, ${memory} na memória). Volta o jogo de todo mundo.`,
+      `Dá para voltar até ${Math.floor(reach / 60)} min (um ponto a cada minuto, últimos 5 min, ${memory} na memória). Volta o jogo de todo mundo.`,
   },
 
   guest: {

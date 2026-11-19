@@ -7,6 +7,7 @@ import {
   type Unsubscribe,
 } from '../../adapters/net/types';
 import { config } from '../../config';
+import type { ControllerLayout } from '../../core/input/layout';
 import { EMPTY_PAD, samePad, type PadState } from '../../core/input/pad';
 import { encodeInput } from '../../core/protocol/inputCodec';
 import {
@@ -40,6 +41,8 @@ export class GuestSession {
   readonly fps = signal<number | null>(null);
   /** Velocidade do jogo definida pelo host (1 = normal). */
   readonly speed = signal(1);
+  /** Botões que este aparelho mostra (conforme o console do jogo). */
+  readonly layout = signal<ControllerLayout>('n64');
   /** Último aviso de "voltar no tempo" (segundos e quando chegou), para mostrar por alguns segundos. */
   readonly rewound = signal<{ seconds: number; at: number } | null>(null);
 
@@ -119,6 +122,7 @@ export class GuestSession {
     switch (message.type) {
       case 'welcome':
         this.port.value = message.port;
+        this.layout.value = message.layout;
         this.status.value = 'connected';
         return;
       case 'port':

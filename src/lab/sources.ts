@@ -30,7 +30,8 @@ export async function createRomSource(
   system: SystemInfo,
   container: HTMLElement,
 ): Promise<LabSource> {
-  const emulator = new EmulatorJSAdapter({ rom, system, gameName });
+  // No laboratório o app dirige o P1 (e a inclinação lê o mesmo controle).
+  const emulator = new EmulatorJSAdapter({ rom, system, gameName, nativeControls: false });
   await emulator.start(container);
   return {
     stream: await emulator.captureStream(60),

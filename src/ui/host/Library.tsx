@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import {
   requestPersistence,
+  romSystem,
   storageInfo,
   type RomLibrary,
   type RomMeta,
   type StorageInfo,
 } from '../../adapters/storage/romLibrary';
+import { romBoxArtUrl } from '../../adapters/catalog/boxArt';
+import { SUPPORTED_EXTENSIONS } from '../../adapters/emulator/systems';
 import type { StateMeta, StateStore } from '../../adapters/storage/stateStore';
 import type { GameSource } from '../../app/host/gameSource';
 import type { Logger } from '../../app/logger';
@@ -69,7 +72,9 @@ export function Library({ library, stateStore, logger, onPlay }: Props) {
       const isFirst = entries?.length === 0;
       const meta = await library.add(file);
       logger.success(`"${displayName(meta).title}" adicionado à biblioteca`);
-      if (meta.catalogName === null) logger.info(`${t.library.notInCatalog}: ${meta.fileName}`);
+      if (meta.catalogName === null && romSystem(meta).layout === 'n64') {
+        logger.info(`${t.library.notInCatalog}: ${meta.fileName}`);
+      }
       if (isFirst) await requestPersistence();
       await refresh();
     }, 'Não foi possível adicionar a ROM');
@@ -81,6 +86,7 @@ export function Library({ library, stateStore, logger, onPlay }: Props) {
         kind: 'rom',
         romId: rom.id,
         file,
+        system: romSystem(rom),
         name: rom.name,
         title: displayName(rom).title,
         resumeStateId,
@@ -103,7 +109,7 @@ export function Library({ library, stateStore, logger, onPlay }: Props) {
         <input
           ref={romInput}
           type="file"
-          accept=".z64,.n64,.v64,.zip,.7z"
+          accept={SUPPORTED_EXTENSIONS.join(',')}
           hidden
           onChange={(e) => {
             void add(e.currentTarget.files?.[0]);
@@ -189,15 +195,14 @@ function GameCard({ entry, busy, onPlay, onSetCover, onResetCover, onRemove }: G
 
   return (
     <li class="game-card">
-      <Cover title={title} catalogName={rom.catalogName} custom={cover} />
+      <Cover title={title} url={romBoxArtUrl(rom)} custom={cover} />
       <div class="game-info stack">
         <div>
           <div class="game-title" title={rom.fileName}>
             {title}
           </div>
           <div class="muted small">
-            {[tags, formatBytes(rom.size)].filter(Boolean).join(' · ')}
-            {rom.catalogName === null && ` · ${t.library.notInCatalog}`}
+            {[romSystem(rom).label, tags, formatBytes(rom.size)].filter(Boolean).join(' · ')}
           </div>
         </div>
 

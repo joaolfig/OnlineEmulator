@@ -37,12 +37,22 @@ export class RewindBuffer {
 
   start(): void {
     this.stop();
+    // Um ponto logo no início: assim o primeiro "voltar" já fica disponível após um intervalo.
+    void this.capture();
     this.timer = setInterval(() => void this.capture(), this.deps.intervalMs);
   }
 
   stop(): void {
     clearInterval(this.timer);
     this.timer = undefined;
+  }
+
+  /** Para e descarta todos os pontos (ao sair do jogo). */
+  dispose(): void {
+    this.stop();
+    this.undo = null;
+    this.canUndo.value = false;
+    this.setSnapshots([]);
   }
 
   /** Tira uma foto agora. */

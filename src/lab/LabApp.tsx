@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import {
-  detectSystem,
-  N64_SYSTEM,
-  SUPPORTED_EXTENSIONS,
-  SYSTEMS,
-  type SystemInfo,
-} from '../adapters/emulator/systems';
-import { RomLibrary, type RomMeta } from '../adapters/storage/romLibrary';
+import { detectSystem, SUPPORTED_EXTENSIONS, SYSTEMS, type SystemInfo } from '../adapters/emulator/systems';
+import { RomLibrary, romSystem, type RomMeta } from '../adapters/storage/romLibrary';
 import { startInputLoop } from '../app/inputLoop';
 import { splitGameName } from '../core/catalog/thumbnails';
 import { EXPERIMENTS, findExperiment } from '../effects/registry';
@@ -147,7 +141,7 @@ export function LabApp() {
                   void runRom(
                     splitGameName(rom.catalogName ?? rom.name).title,
                     () => new RomLibrary().load(rom.id),
-                    N64_SYSTEM,
+                    romSystem(rom),
                     rom.name,
                   )
                 }

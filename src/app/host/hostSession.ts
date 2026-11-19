@@ -9,6 +9,7 @@ import {
   type Unsubscribe,
 } from '../../adapters/net/types';
 import { config } from '../../config';
+import type { ControllerLayout } from '../../core/input/layout';
 import type { PadState } from '../../core/input/pad';
 import { decodeInput } from '../../core/protocol/inputCodec';
 import { parseGuestMessage, PROTOCOL_VERSION, type HostMessage } from '../../core/protocol/messages';
@@ -43,6 +44,15 @@ export interface HostSessionDeps {
   readonly logger: Logger;
   readonly hostName: string;
   readonly randomBytes: RandomBytes;
+  /** Portas do console deste jogo (N64 = 4, SNES = 2, portáteis = 1). */
+  readonly portCount?: number;
+  /** Botões que os convidados devem ver na tela. */
+  readonly layout?: ControllerLayout;
+  /**
+   * true quando o teclado/controles do PC do host são do EmulatorJS: eles controlam sempre o P1,
+   * então o host fica fixo no P1 e ninguém mais pode ir para lá.
+   */
+  readonly hostPortLocked?: boolean;
   readonly now?: () => number;
 }
 
@@ -83,7 +93,12 @@ export class HostSession {
 
   constructor(private readonly deps: HostSessionDeps) {
     this.now = deps.now ?? (() => performance.now());
-    this.room.value = createRoom(deps.hostName, config.portCount);
+    this.room.value = createRoom(deps.hostName, deps.portCount ?? config.portCount);
+  }
+
+  /** P1 preso ao host (controles do EmulatorJS no PC). */
+  get hostPortLocked(): boolean {
+    return this.deps.hostPortLocked ?? false;
   }
 
   get guestCount(): number {
@@ -126,6 +141,10 @@ export class HostSession {
     const after = setPort(before, participantId, port);
     const changes = portChanges(before, after);
     if (changes.length === 0) return;
+    if (this.deps.hostPortLocked && changes.some((c) => c.id === HOST_ID)) {
+      this.deps.logger.warn('O P1 fica com o host: o teclado e os controles do PC são do EmulatorJS');
+      return;
+    }
     for (const { from, to } of changes) {
       if (from !== null) this.deps.emulator.releaseAll(from);
       if (to !== null) this.deps.emulator.releaseAll(to);
@@ -219,7 +238,11 @@ export class HostSession {
     this.room.value = join(this.room.value, id, name, mode);
     guest.joined = true;
     const port = portOf(this.room.value, id);
-    guest.link.sendControl({ type: 'welcome', port } satisfies HostMessage);
+    guest.link.sendControl({
+      type: 'welcome',
+      port,
+      layout: this.deps.layout ?? 'n64',
+    } satisfies HostMessage);
     if (this.speed.value !== 1) {
       guest.link.sendControl({ type: 'speed', multiplier: this.speed.value } satisfies HostMessage);
     }

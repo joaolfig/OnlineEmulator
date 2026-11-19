@@ -30,13 +30,19 @@ export function PlayersPanel({ session }: { session: HostSession }) {
                 <td>
                   <select
                     aria-label={`Porta de ${p.name}`}
+                    disabled={p.isHost && session.hostPortLocked}
                     value={portToValue(p.port)}
                     onChange={(e) => session.setPort(p.id, valueToPort(e.currentTarget.value))}
                   >
                     {/* Aparelho "só tela" não tem controles: só pode ser espectador. */}
                     {p.mode !== 'watch' &&
                       Array.from({ length: room.portCount }, (_, i) => (
-                        <option key={i} value={String(i)}>
+                        <option
+                          key={i}
+                          value={String(i)}
+                          // Com os controles do EmulatorJS, o P1 é sempre do host.
+                          disabled={i === 0 && !p.isHost && session.hostPortLocked}
+                        >
                           P{i + 1}
                         </option>
                       ))}

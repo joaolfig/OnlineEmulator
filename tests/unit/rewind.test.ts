@@ -64,11 +64,11 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 describe('RewindBuffer', () => {
-  it('tira uma foto a cada intervalo', async () => {
+  it('tira uma foto ao começar e depois a cada intervalo', async () => {
     const { buffer } = setup();
     buffer.start();
     await vi.advanceTimersByTimeAsync(35_000);
-    expect(buffer.times.value).toHaveLength(3);
+    expect(buffer.times.value).toHaveLength(4);
     buffer.stop();
   });
 

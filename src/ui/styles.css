@@ -598,3 +598,20 @@ th {
   padding: 10px;
   max-width: calc(100% - 16px);
 }
+
+/* ---------- Página inicial ---------- */
+.console-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.console-list li {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 4px 12px;
+  font-size: 13px;
+}

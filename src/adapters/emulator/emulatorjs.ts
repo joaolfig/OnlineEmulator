@@ -10,10 +10,10 @@ const AUDIO_TAP_TIMEOUT_MS = 3000;
 const NO_CONTROLS = { 0: {}, 1: {}, 2: {}, 3: {} };
 
 /**
- * Esconde os botões do EmulatorJS que o app já oferece (saves, tela cheia) ou que conflitam com ele
- * (netplay próprio, gamepad virtual, cheats). Ficam: pausar, volume e configurações de vídeo.
+ * Modo enxuto (celular): esconde os botões do EmulatorJS que o app já oferece (saves, tela cheia) ou
+ * que conflitam com ele (gamepad virtual, cheats). Ficam: pausar, volume e configurações de vídeo.
  */
-const HIDDEN_BUTTONS = {
+const COMPACT_BUTTONS = {
   restart: false,
   fullscreen: false,
   saveState: false,
@@ -33,9 +33,12 @@ const HIDDEN_BUTTONS = {
   contextMenu: false,
 };
 
-const DEFAULT_OPTIONS = {
+/** Modo completo (PC): a barra do EmulatorJS inteira, menos o netplay dele (o app tem o próprio). */
+const FULL_BUTTONS = { netplay: false };
+
+const COMPACT_OPTIONS = {
   // O gamepad virtual do EmulatorJS controla sempre o P1 direto, ignorando a troca de portas.
-  // O app usa os próprios controles touch no lugar dele.
+  // No celular o app usa os próprios controles touch no lugar dele.
   'virtual-gamepad': 'disabled',
 };
 
@@ -43,6 +46,11 @@ export interface EmulatorJSOptions {
   readonly rom: File;
   /** Console da ROM (define o core do EmulatorJS e o mapeamento dos botões). */
   readonly system: SystemInfo;
+  /**
+   * true (PC): o teclado e os controles do computador do host ficam com o EmulatorJS, com o menu
+   * dele para configurar os comandos de cada jogador. false (celular): todo input passa pelo app.
+   */
+  readonly nativeControls: boolean;
   readonly gameName: string;
 }
 
@@ -71,11 +79,15 @@ export class EmulatorJSAdapter implements Emulator {
         EJS_gameName: this.options.gameName,
         EJS_pathtodata: config.ejsDataUrl,
         EJS_startOnLoaded: true,
-        EJS_defaultControls: NO_CONTROLS,
-        // Sem isso, controles salvos pelo EmulatorJS sobrescreveriam NO_CONTROLS.
-        EJS_disableLocalStorage: true,
-        EJS_Buttons: HIDDEN_BUTTONS,
-        EJS_defaultOptions: DEFAULT_OPTIONS,
+        ...(this.options.nativeControls
+          ? { EJS_Buttons: FULL_BUTTONS }
+          : {
+              EJS_defaultControls: NO_CONTROLS,
+              // Sem isso, controles salvos pelo EmulatorJS sobrescreveriam NO_CONTROLS.
+              EJS_disableLocalStorage: true,
+              EJS_Buttons: COMPACT_BUTTONS,
+              EJS_defaultOptions: COMPACT_OPTIONS,
+            }),
         EJS_onGameStart: () => {
           const ejs = window.EJS_emulator;
           if (!ejs) return reject(new EmulatorLoadError('EmulatorJS iniciou sem expor a instância'));

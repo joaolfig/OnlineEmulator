@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { Emulator } from '../../src/adapters/emulator/types';
 import { MemoryNetwork } from '../../src/adapters/net/memory';
 import { GuestSession } from '../../src/app/guest/guestSession';
-import { HostSession } from '../../src/app/host/hostSession';
+import { HostSession, type HostSessionDeps } from '../../src/app/host/hostSession';
 import { Logger } from '../../src/app/logger';
 import { buttonMask, EMPTY_PAD, type PadState } from '../../src/core/input/pad';
 import { encodeInput } from '../../src/core/protocol/inputCodec';
@@ -38,7 +38,9 @@ let clock = 0;
 const now = () => clock;
 const sessions: { close(): void }[] = [];
 
-async function setup() {
+async function setup(
+  options: Partial<Pick<HostSessionDeps, 'portCount' | 'layout' | 'hostPortLocked'>> = {},
+) {
   const network = new MemoryNetwork();
   const emulator = new RecordingEmulator();
   const logger = new Logger();
@@ -50,6 +52,7 @@ async function setup() {
     hostName: 'Host',
     randomBytes: (n) => Uint8Array.from({ length: n }, () => seed++),
     now,
+    ...options,
   });
   sessions.push(host);
   await host.open(FAKE_STREAM);
@@ -206,6 +209,33 @@ describe('host + convidados (transporte em memória)', () => {
     const ana = await addGuest('Ana');
     host.notifyRewound(30);
     expect(ana.rewound.value?.seconds).toBe(30);
+  });
+
+  it('console de 2 portas (SNES): o terceiro jogador vira espectador', async () => {
+    const { addGuest } = await setup({ portCount: 2 });
+    expect((await addGuest('Ana')).port.value).toBe(1);
+    expect((await addGuest('Bia')).port.value).toBeNull();
+  });
+
+  it('convidado recebe o layout de botões do console', async () => {
+    const { addGuest } = await setup({ layout: 'retropad' });
+    expect((await addGuest('Ana')).layout.value).toBe('retropad');
+    const n64 = await setup();
+    expect((await n64.addGuest('Bia')).layout.value).toBe('n64');
+  });
+
+  it('com os controles do EmulatorJS no PC, o host fica fixo no P1', async () => {
+    const { host, addGuest } = await setup({ hostPortLocked: true });
+    const ana = await addGuest('Ana');
+    const anaId = host.room.value.participants[1]?.id ?? '';
+    host.setPort(anaId, 0); // tentaria trocar com o host
+    host.setPort(HOST_ID, 2);
+    expect(ana.port.value).toBe(1);
+    expect(host.room.value.participants[0]?.port).toBe(0);
+    // Trocar entre convidados continua valendo.
+    host.setPort(anaId, 3);
+    await flush();
+    expect(ana.port.value).toBe(3);
   });
 
   it('sala inexistente gera erro amigável', async () => {

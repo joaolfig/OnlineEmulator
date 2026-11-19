@@ -1,6 +1,6 @@
 # OnlineEmulator
 
-Jogue N64 online com amigos direto no navegador, sem instalar nada.
+Jogue videogames clássicos online com amigos direto no navegador, sem instalar nada: **Nintendo 64, Super Nintendo, NES, Game Boy / Color, Game Boy Advance, Mega Drive, Master System, Game Gear e PC Engine**.
 
 Só o **host** roda o emulador ([EmulatorJS](https://emulatorjs.org)) e transmite vídeo e áudio por WebRTC ([PeerJS](https://peerjs.com)). Os amigos abrem um link no celular ou no PC e mandam só os comandos do controle. O site é estático e fica hospedado no GitHub Pages.
 
@@ -17,7 +17,11 @@ O plano completo está em [`PLANO.md`](PLANO.md).
 
 O progresso fica salvo no navegador do host: o save do cartucho é gravado a cada minuto, e o botão **Continuar** na biblioteca volta exatamente para onde a partida parou. Use **Sair e salvar** para sair com segurança.
 
-Controles no teclado: WASD/setas (Shift = meia força), K = A, J = B, L = Z, Enter = Start, Q/E = L/R, T/F/G/H = C-buttons. Controles USB ou Bluetooth também funcionam, e no celular aparecem botões na tela.
+Controles:
+- **Host no PC:** os controles do próprio EmulatorJS. Para ver ou mudar as teclas e os controles de cada jogador, use o botão 🎮 na barra do emulador. O host joga como P1.
+- **Convidados e host no celular:** teclado (WASD/setas, K = A, J = B, L = Z, Enter = Start, Q/E = L/R, T/F/G/H = C), controle USB/Bluetooth ou botões na tela, com o layout do console do jogo.
+
+Extras: o jogo salva sozinho a cada minuto (botão **Continuar** na biblioteca), dá para **voltar no tempo** 1, 2 ou 5 minutos (só durante a sessão), **acelerar** até 4x e ligar **efeitos visuais** (inclinação, TV de tubo, relevo com luz), cada um no próprio aparelho.
 
 > **Mantenha a aba do host visível.** Em segundo plano, o navegador pausa o jogo para todos.
 

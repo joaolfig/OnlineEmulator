@@ -1,8 +1,19 @@
 import { identifyN64Rom } from '../catalog/n64Catalog';
+import { detectSystem, N64_SYSTEM, systemById, type SystemInfo } from '../emulator/systems';
 import { sha1Hex } from './hash';
 import { openLibraryDb, type LibraryDb, type RomMeta } from './libraryDb';
 
 export type { RomMeta } from './libraryDb';
+
+/** Console da ROM (entradas antigas, sem o campo, eram de N64). */
+export const romSystem = (meta: RomMeta): SystemInfo => systemById(meta.system) ?? N64_SYSTEM;
+
+export class UnsupportedRomError extends Error {
+  override readonly name = 'UnsupportedRomError';
+  constructor(readonly fileName: string) {
+    super(`Formato de ROM não suportado: ${fileName}`);
+  }
+}
 
 /** Biblioteca de ROMs do host: arquivos, identificação pelo catálogo e capas personalizadas. */
 export class RomLibrary {
@@ -14,7 +25,7 @@ export class RomLibrary {
     // Entradas criadas antes do catálogo existir são identificadas agora, uma vez só.
     const identified = await Promise.all(
       all.map(async (meta) => {
-        if (meta.catalogName !== undefined) return meta;
+        if (meta.catalogName !== undefined || romSystem(meta).id !== N64_SYSTEM.id) return meta;
         const blob = await db.get('data', meta.id);
         const updated: RomMeta = { ...meta, catalogName: blob ? await identifyN64Rom(blob) : null };
         await db.put('meta', updated);
@@ -25,6 +36,8 @@ export class RomLibrary {
   }
 
   async add(file: File): Promise<RomMeta> {
+    const system = detectSystem(file.name);
+    if (!system) throw new UnsupportedRomError(file.name);
     const id = await sha1Hex(file);
     const db = await this.db();
     const existing = await db.get('meta', id);
@@ -36,7 +49,9 @@ export class RomLibrary {
       size: file.size,
       addedAt: Date.now(),
       lastPlayedAt: null,
-      catalogName: await identifyN64Rom(file),
+      system: system.id,
+      // Só o N64 tem catálogo; nos outros consoles o nome do arquivo já costuma ser o oficial.
+      catalogName: system.id === N64_SYSTEM.id ? await identifyN64Rom(file) : null,
     };
     const tx = db.transaction(['meta', 'data'], 'readwrite');
     await Promise.all([tx.objectStore('data').put(file, id), tx.objectStore('meta').put(meta), tx.done]);

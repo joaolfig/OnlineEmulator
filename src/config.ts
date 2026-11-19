@@ -31,18 +31,21 @@ export const config = {
     /** Grava a memória do cartucho no navegador (o próprio EmulatorJS só grava a cada 5 min). */
     cartridgeFlushIntervalMs: 60_000,
     /** Savestate automático para "continuar de onde parou". */
-    autoStateIntervalMs: 5 * 60_000,
-    /** Quantos savestates automáticos guardar por jogo. */
-    autoStatesKept: 3,
+    autoStateIntervalMs: 60_000,
+    /** Quantos savestates automáticos guardar por jogo: só o último. */
+    autoStatesKept: 1,
   },
 
-  /** "Voltar no tempo": savestates comprimidos na memória, tirados periodicamente. */
+  /**
+   * "Voltar no tempo": savestates comprimidos só na memória da aba, tirados periodicamente.
+   * Nada disso vai para o disco: some ao sair do jogo ou fechar a janela.
+   */
   rewind: {
-    snapshotIntervalMs: 10_000,
-    /** 30 × 10 s = os últimos 5 minutos. */
-    snapshotsKept: 30,
+    snapshotIntervalMs: 60_000,
+    /** 6 pontos (o atual e um por minuto) cobrem sempre os últimos 5 minutos. */
+    snapshotsKept: 6,
     /** Botões de voltar, em segundos. */
-    stepsSeconds: [10, 30, 60, 300],
+    stepsSeconds: [60, 120, 300],
   },
 
   /** Velocidades do "acelerar" (1 = normal). O limite real é o quanto o PC aguenta. */
