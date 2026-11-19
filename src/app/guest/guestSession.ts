@@ -84,7 +84,24 @@ export class GuestSession {
         }
       }),
     );
-    link.sendControl({ type: 'hello', v: PROTOCOL_VERSION, name, mode } satisfies GuestMessage);
+    // Repete o "olá" até o host responder (uma mensagem pode se perder enquanto a conexão se ajeita);
+    // o host ignora repetições. Sem resposta no prazo, mostra erro em vez de ficar "Conectando…".
+    const hello = () =>
+      link.sendControl({ type: 'hello', v: PROTOCOL_VERSION, name, mode } satisfies GuestMessage);
+    hello();
+    const startedAt = this.now();
+    const retry = setInterval(() => {
+      if (this.status.value !== 'connecting') return clearInterval(retry);
+      if (this.now() - startedAt >= config.joinTimeoutMs) {
+        clearInterval(retry);
+        this.status.value = 'error';
+        this.error.value = 'network';
+        logger.error('O host não respondeu');
+        return;
+      }
+      hello();
+    }, config.helloRetryMs);
+    this.timers.push(retry);
     this.timers.push(
       setInterval(
         () => link.sendControl({ type: 'ping', ts: this.now() } satisfies GuestMessage),

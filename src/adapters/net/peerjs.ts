@@ -41,6 +41,12 @@ class PeerLink implements Link {
     return this.control.peer;
   }
 
+  /** Entrega mensagens que chegaram antes de o link existir. */
+  deliverEarly(control: readonly unknown[], input: readonly unknown[]): void {
+    control.forEach((data) => this.controlEvents.emit(data));
+    input.forEach((data) => this.inputEvents.emit(data));
+  }
+
   get isOpen(): boolean {
     return !this.closed && this.control.open;
   }
@@ -94,6 +100,19 @@ export class PeerJsHostTransport implements HostTransport {
   private peer: Peer | null = null;
   private readonly linkEvents = new Emitter<[Link]>();
   private readonly pending = new Map<string, { control?: DataConnection; input?: DataConnection }>();
+  private readonly early = new Map<
+    DataConnection,
+    { buffer: (data: unknown) => void; messages: unknown[] }
+  >();
+
+  /** Para de guardar mensagens desta conexão e devolve o que foi guardado. */
+  private takeEarly(conn: DataConnection): unknown[] {
+    const entry = this.early.get(conn);
+    if (!entry) return [];
+    conn.off('data', entry.buffer);
+    this.early.delete(conn);
+    return entry.messages;
+  }
 
   open(roomCode: string): Promise<void> {
     this.peer?.destroy();
@@ -129,6 +148,12 @@ export class PeerJsHostTransport implements HostTransport {
 
   private acceptConnection(conn: DataConnection): void {
     if (conn.label !== CONTROL_LABEL && conn.label !== INPUT_LABEL) return conn.close();
+    // O convidado pode mandar mensagens (o "olá") assim que o lado dele abre, antes de o segundo
+    // canal abrir aqui. Guarda tudo desde já e entrega quando a conexão estiver pronta.
+    const early: unknown[] = [];
+    const buffer = (data: unknown) => early.push(data);
+    conn.on('data', buffer);
+    this.early.set(conn, { buffer, messages: early });
     whenOpen(conn)
       .then(() => {
         const entry = this.pending.get(conn.peer) ?? {};
@@ -136,7 +161,12 @@ export class PeerJsHostTransport implements HostTransport {
         else entry.input = conn;
         if (entry.control && entry.input) {
           this.pending.delete(conn.peer);
-          this.linkEvents.emit(new PeerLink(entry.control, entry.input));
+          const link = new PeerLink(entry.control, entry.input);
+          const control = this.takeEarly(entry.control);
+          const input = this.takeEarly(entry.input);
+          this.linkEvents.emit(link);
+          // Depois que a sessão já está ouvindo o link, entrega o que chegou cedo, na ordem.
+          link.deliverEarly(control, input);
           return;
         }
         this.pending.set(conn.peer, entry);
@@ -144,11 +174,15 @@ export class PeerJsHostTransport implements HostTransport {
         setTimeout(() => {
           if (this.pending.get(conn.peer) === entry) {
             this.pending.delete(conn.peer);
+            this.takeEarly(conn);
             conn.close();
           }
         }, config.joinTimeoutMs);
       })
-      .catch(() => conn.close());
+      .catch(() => {
+        this.takeEarly(conn);
+        conn.close();
+      });
   }
 }
 

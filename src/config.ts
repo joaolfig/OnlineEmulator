@@ -24,6 +24,8 @@ export const config = {
   pingIntervalMs: 1000,
   statsIntervalMs: 1000,
   joinTimeoutMs: 15_000,
+  /** O convidado repete o "olá" neste intervalo até o host responder. */
+  helloRetryMs: 1500,
   /** Limite de mensagens de controle por segundo por convidado (o resto é descartado). */
   maxControlMessagesPerSecond: 30,
 

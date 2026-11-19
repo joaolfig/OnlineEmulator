@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Emulator } from '../../src/adapters/emulator/types';
 import { MemoryNetwork } from '../../src/adapters/net/memory';
 import { GuestSession } from '../../src/app/guest/guestSession';
@@ -246,6 +246,32 @@ describe('host + convidados (transporte em memória)', () => {
     expect(emulator.localPort).toBe(1);
     host.setPort(HOST_ID, 3);
     expect(emulator.localPort).toBe(3);
+  });
+
+  it('convidado repete o "olá" e mostra erro se o host nunca responder', async () => {
+    vi.useFakeTimers();
+    try {
+      const network = new MemoryNetwork();
+      const silentHost = network.createHost(); // sala aberta, mas ninguém responde
+      await silentHost.open('SILENT');
+      const hellos: unknown[] = [];
+      silentHost.onLink((link) => link.onControl((m) => hellos.push(m)));
+      const guest = new GuestSession({ transport: network.createGuest(), logger: new Logger(), now });
+      sessions.push({ close: () => guest.leave() });
+      await guest.join('SILENT', 'Ana');
+      for (let i = 0; i < 4; i++) {
+        clock += 1500;
+        await vi.advanceTimersByTimeAsync(1500);
+      }
+      expect(hellos.filter((m) => (m as { type: string }).type === 'hello').length).toBeGreaterThan(1);
+      expect(guest.status.value).toBe('connecting');
+      clock += 15_000;
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(guest.status.value).toBe('error');
+      expect(guest.error.value).toBe('network');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('sala inexistente gera erro amigável', async () => {
