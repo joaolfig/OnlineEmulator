@@ -7,6 +7,7 @@ import { Logger } from '../../src/app/logger';
 import { buttonMask, EMPTY_PAD, type PadState } from '../../src/core/input/pad';
 import { encodeInput } from '../../src/core/protocol/inputCodec';
 import { HOST_ID, type DeviceMode } from '../../src/core/room/room';
+import type { Avatar } from '../../src/core/social';
 
 /** Emulador de mentira que só registra o que recebeu. */
 class RecordingEmulator implements Emulator {
@@ -61,10 +62,10 @@ async function setup(options: Partial<Pick<HostSessionDeps, 'portCount' | 'layou
   await host.open(FAKE_STREAM);
   const code = host.roomCode.value ?? '';
 
-  const addGuest = async (name: string, mode: DeviceMode = 'play') => {
+  const addGuest = async (name: string, mode: DeviceMode = 'play', avatar?: Avatar) => {
     const guest = new GuestSession({ transport: network.createGuest(), logger, now });
     sessions.push({ close: () => guest.leave() });
-    await guest.join(code, name, mode);
+    await guest.join(code, name, mode, avatar);
     await flush();
     return guest;
   };
@@ -272,6 +273,32 @@ describe('host + convidados (transporte em memória)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('reações chegam a todos com nome e boneco, respeitando o intervalo mínimo', async () => {
+    const { host, addGuest } = await setup();
+    const ana = await addGuest('Ana', 'play', '🐙');
+    const cam = await addGuest('Cam');
+    expect(ana.react('lol')).toBe(true);
+    expect(ana.react('nooo')).toBe(false); // cedo demais
+    await flush();
+    const expected = { reaction: 'lol', name: 'Ana', avatar: '🐙' };
+    expect(host.reactions.value.at(-1)).toMatchObject(expected);
+    expect(cam.reactions.value.at(-1)).toMatchObject(expected);
+    clock += 2000;
+    host.react('nice');
+    await flush();
+    expect(cam.reactions.value.at(-1)).toMatchObject({ reaction: 'nice', name: 'Host' });
+  });
+
+  it('o boneco escolhido aparece para todos; "Só controle" não manda reação', async () => {
+    const { host, addGuest } = await setup();
+    const ana = await addGuest('Ana', 'play', '🦖');
+    const controller = await addGuest('Controle', 'controller');
+    expect(controller.react('lol')).toBe(false);
+    host.setHostAvatar('👻');
+    await flush();
+    expect(ana.lobby.value.map((p) => p.avatar)).toEqual(['👻', '🦖', expect.any(String)]);
   });
 
   it('sala inexistente gera erro amigável', async () => {

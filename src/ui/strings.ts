@@ -9,6 +9,13 @@ export const t = {
   tagline: 'Jogue videogames clássicos online com amigos, direto no navegador.',
   consolesTitle: 'Consoles',
 
+  social: {
+    avatar: 'Boneco',
+    chooseAvatar: 'Escolha seu boneco',
+    reactions: 'Reações',
+    reactionsHint: 'Mandar uma reação para todos. No teclado: tecla ` (acento) e depois 1 a 8.',
+  },
+
   effects: {
     label: 'Efeitos visuais',
     hint: 'Dá para ligar vários. Só neste aparelho: não muda o jogo nem o que os outros veem.',

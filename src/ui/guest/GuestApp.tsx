@@ -6,11 +6,13 @@ import { startInputLoop } from '../../app/inputLoop';
 import { isDebugEnabled, Logger } from '../../app/logger';
 import { config } from '../../config';
 import { DEVICE_MODES, type DeviceMode } from '../../core/room/room';
+import type { Avatar } from '../../core/social';
 import { isValidRoomCode, normalizeRoomCode } from '../../core/util/roomCode';
 import { EMPTY_PAD, type PadState } from '../../core/input/pad';
 import { enterFullscreen, isTouchDevice } from '../shared/device';
 import { EffectLayer } from '../shared/EffectLayer';
 import { EffectToggles, useEffectsPreference } from '../shared/EffectPicker';
+import { AvatarPicker, ReactionFeed, ReactionPicker, useAvatarPreference } from '../shared/social';
 import { createTouchState, readTouch, TouchControls } from '../shared/TouchControls';
 import { PORT_COLORS, t } from '../strings';
 
@@ -27,11 +29,11 @@ export function GuestApp() {
   // Sai da sala ao fechar a página ou trocar de sessão.
   useEffect(() => () => session?.leave(), [session]);
 
-  const join = (code: string, name: string, mode: DeviceMode) => {
+  const join = (code: string, name: string, mode: DeviceMode, avatar: Avatar) => {
     session?.leave();
     const s = new GuestSession({ transport: new PeerJsGuestTransport(), logger });
     setSession(s);
-    void s.join(code, name, mode);
+    void s.join(code, name, mode, avatar);
   };
 
   const status = session?.status.value ?? 'idle';
@@ -50,7 +52,7 @@ export function GuestApp() {
 interface JoinFormProps {
   readonly busy: boolean;
   readonly error: string | null;
-  readonly onJoin: (code: string, name: string, mode: DeviceMode) => void;
+  readonly onJoin: (code: string, name: string, mode: DeviceMode, avatar: Avatar) => void;
 }
 
 function JoinForm({ busy, error, onJoin }: JoinFormProps) {
@@ -58,6 +60,7 @@ function JoinForm({ busy, error, onJoin }: JoinFormProps) {
     normalizeRoomCode(new URLSearchParams(location.search).get('r') ?? ''),
   );
   const [name, setName] = useState(() => readPreference(NAME_KEY) ?? '');
+  const [avatar, setAvatar] = useAvatarPreference();
   const [mode, setMode] = useState<DeviceMode>(() => {
     const saved = readPreference(MODE_KEY);
     return isDeviceMode(saved) ? saved : 'play';
@@ -72,7 +75,7 @@ function JoinForm({ busy, error, onJoin }: JoinFormProps) {
     const finalName = name.trim().slice(0, config.maxNameLength) || 'Jogador';
     writePreference(NAME_KEY, finalName);
     writePreference(MODE_KEY, mode);
-    onJoin(normalizeRoomCode(code), finalName, mode);
+    onJoin(normalizeRoomCode(code), finalName, mode, avatar);
   };
 
   return (
@@ -97,6 +100,7 @@ function JoinForm({ busy, error, onJoin }: JoinFormProps) {
             onInput={(e) => setName(e.currentTarget.value)}
           />
         </label>
+        <AvatarPicker value={avatar} onChange={setAvatar} />
         <fieldset class="mode-picker">
           <legend>{t.guest.modeQuestion}</legend>
           {DEVICE_MODES.map((m) => (
@@ -195,7 +199,13 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
       {showTouch && (
         <TouchControls state={touch} large={mode === 'controller'} layout={session.layout.value} />
       )}
+      {/* Reações: não aparecem no modo "Só controle" (atrapalhariam mais do que ajudariam). */}
+      {mode !== 'controller' && <ReactionFeed events={session.reactions.value} />}
+      {mode !== 'controller' && isTouch && (
+        <ReactionPicker variant="floating" onReact={(r) => session.react(r)} />
+      )}
       <div class="hud">
+        {session.avatar && <span class="pill hud-avatar">{session.avatar}</span>}
         <span class="pill" data-testid="who" style={{ borderColor: playerColor }}>
           {port === undefined ? t.guest.connecting : t.guest.you(port)}
         </span>
@@ -208,6 +218,9 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
           </span>
         )}
         <span class="grow" />
+        {mode !== 'controller' && !isTouch && (
+          <ReactionPicker variant="inline" onReact={(r) => session.react(r)} />
+        )}
         {showVideo && (
           <button
             class={effectActive ? 'primary' : ''}

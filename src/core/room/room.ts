@@ -1,6 +1,8 @@
 // Estado da sala: quem está conectado e em qual porta do console.
 // Funções puras: recebem um estado e devolvem um novo, sem efeitos colaterais.
 
+import { AVATARS, pickFreeAvatar, type Avatar } from '../social';
+
 /** Porta do console (0 = P1) ou null para espectador. */
 export type Port = number | null;
 
@@ -19,6 +21,7 @@ export interface Participant {
   readonly port: Port;
   readonly isHost: boolean;
   readonly mode: DeviceMode;
+  readonly avatar: Avatar;
 }
 
 export interface RoomState {
@@ -28,8 +31,11 @@ export interface RoomState {
 
 export const HOST_ID = 'host';
 
-export function createRoom(hostName: string, portCount: number): RoomState {
-  return { portCount, participants: [{ id: HOST_ID, name: hostName, port: 0, isHost: true, mode: 'play' }] };
+export function createRoom(hostName: string, portCount: number, hostAvatar: Avatar = AVATARS[0]): RoomState {
+  return {
+    portCount,
+    participants: [{ id: HOST_ID, name: hostName, port: 0, isHost: true, mode: 'play', avatar: hostAvatar }],
+  };
 }
 
 export const findParticipant = (state: RoomState, id: string): Participant | undefined =>
@@ -44,16 +50,30 @@ export function freePort(state: RoomState): Port {
 }
 
 /** Entra na primeira porta livre, ou como espectador se a sala estiver cheia (ou se só for assistir). */
-export function join(state: RoomState, id: string, name: string, mode: DeviceMode = 'play'): RoomState {
+export function join(
+  state: RoomState,
+  id: string,
+  name: string,
+  mode: DeviceMode = 'play',
+  avatar?: Avatar,
+): RoomState {
   if (findParticipant(state, id)) return state;
   const port = mode === 'watch' ? null : freePort(state);
-  const participant: Participant = { id, name, port, isHost: false, mode };
+  // Sem escolha (convidado antigo), pega um boneco que ninguém está usando.
+  const chosen = avatar ?? pickFreeAvatar(state.participants.map((p) => p.avatar));
+  const participant: Participant = { id, name, port, isHost: false, mode, avatar: chosen };
   return { ...state, participants: [...state.participants, participant] };
 }
 
 export function leave(state: RoomState, id: string): RoomState {
   if (id === HOST_ID) return state;
   return { ...state, participants: state.participants.filter((p) => p.id !== id) };
+}
+
+/** Troca o boneco de alguém. */
+export function setAvatar(state: RoomState, id: string, avatar: Avatar): RoomState {
+  if (!findParticipant(state, id)) return state;
+  return { ...state, participants: state.participants.map((p) => (p.id === id ? { ...p, avatar } : p)) };
 }
 
 /** Move alguém para outra porta. Se a porta estiver ocupada, os dois trocam de lugar. */

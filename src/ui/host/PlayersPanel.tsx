@@ -1,12 +1,20 @@
 import type { HostSession } from '../../app/host/hostSession';
 import type { Port } from '../../core/room/room';
+import type { Avatar } from '../../core/social';
+import { AvatarSelect } from '../shared/social';
 import { t } from '../strings';
 
 const SPECTATOR = 'spectator';
 const portToValue = (port: Port): string => (port === null ? SPECTATOR : String(port));
 const valueToPort = (value: string): Port => (value === SPECTATOR ? null : Number(value));
 
-export function PlayersPanel({ session }: { session: HostSession }) {
+interface Props {
+  readonly session: HostSession;
+  /** O host troca o próprio boneco aqui mesmo, na linha dele. */
+  readonly onHostAvatar: (avatar: Avatar) => void;
+}
+
+export function PlayersPanel({ session, onHostAvatar }: Props) {
   const room = session.room.value;
   const stats = session.stats.value;
 
@@ -44,6 +52,11 @@ export function PlayersPanel({ session }: { session: HostSession }) {
                   </select>
                 </td>
                 <td>
+                  {p.isHost ? (
+                    <AvatarSelect value={p.avatar} onChange={onHostAvatar} />
+                  ) : (
+                    <span class="table-avatar">{p.avatar}</span>
+                  )}{' '}
                   {p.isHost ? t.host.hostName : p.name}{' '}
                   {t.host.modeLabel[p.mode] && <span class="muted small">{t.host.modeLabel[p.mode]}</span>}
                 </td>

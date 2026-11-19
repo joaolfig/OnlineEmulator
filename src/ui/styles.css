@@ -615,3 +615,137 @@ th {
   padding: 4px 12px;
   font-size: 13px;
 }
+
+/* ---------- Bonecos e reações ---------- */
+.avatar-picker {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.avatar-picker legend {
+  margin-bottom: 6px;
+}
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+.avatar-grid button {
+  font-size: 22px;
+  padding: 6px 0;
+  line-height: 1;
+}
+.avatar-grid button.selected {
+  border-color: var(--accent);
+  background: rgba(91, 140, 255, 0.18);
+}
+.avatar-select {
+  padding: 2px 4px;
+  font-size: 16px;
+}
+.table-avatar {
+  font-size: 16px;
+}
+.hud-avatar {
+  font-size: 16px;
+  padding: 2px 8px;
+}
+.reaction-picker {
+  position: relative;
+  pointer-events: auto;
+}
+.reaction-picker.floating {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+}
+.reaction-toggle {
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.55);
+}
+.reaction-picker.inline .reaction-toggle {
+  background: var(--panel-2);
+}
+.reaction-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 7;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: min(340px, 90vw);
+  padding: 8px;
+  background: rgba(20, 21, 30, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.reaction-picker.floating .reaction-menu {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+.reaction-menu button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  text-align: left;
+}
+.reaction-menu kbd {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: inherit;
+}
+.reaction-emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+.reaction-feed {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 5;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+.reaction-bubble {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 99px;
+  font-size: 14px;
+  animation: reaction-pop 0.25s ease-out;
+}
+.reaction-avatar {
+  font-size: 20px;
+}
+.reaction-name {
+  font-weight: 700;
+}
+@keyframes reaction-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+/* No celular os balões ficam no alto, longe do analógico e dos botões. */
+.stage .reaction-feed {
+  bottom: auto;
+  top: 96px;
+}

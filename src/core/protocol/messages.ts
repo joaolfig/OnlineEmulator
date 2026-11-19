@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import { config } from '../../config';
 import { CONTROLLER_LAYOUTS } from '../input/layout';
 import { DEVICE_MODES } from '../room/room';
+import { AVATARS, REACTION_IDS } from '../social';
 
 // Mensagens do canal de controle (JSON, confiável). Os inputs vão por outro canal (inputCodec.ts).
 // Toda mensagem recebida da rede passa por estes schemas antes de ser usada.
@@ -21,7 +22,9 @@ export const GuestMessageSchema = v.variant('type', [
     name: Name,
     // Opcional para continuar compatível com convidados que ainda não mandam o modo.
     mode: v.optional(v.picklist(DEVICE_MODES), 'play'),
+    avatar: v.optional(v.picklist(AVATARS)),
   }),
+  v.object({ type: v.literal('react'), reaction: v.picklist(REACTION_IDS) }),
   v.object({ type: v.literal('ping'), ts: Timestamp }),
   v.object({ type: v.literal('rtt'), ms: v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(60_000)) }),
 ]);
@@ -29,7 +32,7 @@ export type GuestMessage = v.InferOutput<typeof GuestMessageSchema>;
 
 // ---------- Host → Convidado ----------
 
-const LobbyPlayer = v.object({ name: Name, port: Port, isHost: v.boolean() });
+const LobbyPlayer = v.object({ name: Name, port: Port, isHost: v.boolean(), avatar: v.picklist(AVATARS) });
 
 export const HostMessageSchema = v.variant('type', [
   v.object({
@@ -41,6 +44,12 @@ export const HostMessageSchema = v.variant('type', [
   v.object({ type: v.literal('port'), port: Port }),
   v.object({ type: v.literal('lobby'), players: v.pipe(v.array(LobbyPlayer), v.maxLength(32)) }),
   v.object({ type: v.literal('pong'), ts: Timestamp }),
+  v.object({
+    type: v.literal('reaction'),
+    reaction: v.picklist(REACTION_IDS),
+    name: Name,
+    avatar: v.picklist(AVATARS),
+  }),
   // Avisos para os convidados entenderem o que aconteceu com o jogo.
   v.object({
     type: v.literal('speed'),

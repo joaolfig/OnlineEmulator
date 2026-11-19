@@ -14,7 +14,7 @@ export const readTouch = (state: TouchState): PadState => ({ ...state });
 
 const STICK_RADIUS = 55;
 
-// [rótulo, botão, right %, bottom %, tamanho px]
+// [rótulo, botão, right %, bottom %, tamanho px]. L e R ficam abaixo da barra do topo (nome, ping, ✨).
 type ButtonSpec = readonly [string, Button, number, number, number];
 
 /** Controle de N64: A, B, Z, Start, L, R e os quatro C. */
@@ -23,8 +23,8 @@ const N64_BUTTONS: readonly ButtonSpec[] = [
   ['B', 'B', 20, 30, 64],
   ['Z', 'Z', 30, 10, 56],
   ['Start', 'START', 47, 4, 56],
-  ['L', 'L', 88, 82, 52],
-  ['R', 'R', 4, 82, 52],
+  ['L', 'L', 88, 70, 52],
+  ['R', 'R', 4, 70, 52],
   ['C▲', 'CUP', 12, 62, 40],
   ['C▼', 'CDOWN', 12, 44, 40],
   ['C◀', 'CLEFT', 19, 53, 40],
@@ -42,8 +42,8 @@ const RETROPAD_BUTTONS: readonly ButtonSpec[] = [
   ['Y', 'CLEFT', 22, 26, 58],
   ['Start', 'START', 44, 4, 52],
   ['Select', 'Z', 55, 4, 52],
-  ['L', 'L', 88, 82, 52],
-  ['R', 'R', 4, 82, 52],
+  ['L', 'L', 88, 70, 52],
+  ['R', 'R', 4, 70, 52],
 ];
 
 const BUTTONS_BY_LAYOUT: Readonly<Record<ControllerLayout, readonly ButtonSpec[]>> = {

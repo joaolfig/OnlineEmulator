@@ -14,6 +14,7 @@ import { EMPTY_PAD, type PadState } from '../../core/input/pad';
 import { enterFullscreen, exitFullscreen, isTouchDevice } from '../shared/device';
 import { EffectLayer } from '../shared/EffectLayer';
 import { EffectToggles, useEffectsPreference } from '../shared/EffectPicker';
+import { ReactionFeed, ReactionPicker, useAvatarPreference } from '../shared/social';
 import { createTouchState, readTouch, TouchControls } from '../shared/TouchControls';
 import { t } from '../strings';
 import { LogPanel } from './LogPanel';
@@ -50,6 +51,9 @@ export function GameScreen({ source, stateStore, logger }: Props) {
   /** Último estado do controle do host, para o efeito visual reagir a ele. */
   const lastPad = useRef<PadState>(EMPTY_PAD);
   const [effects, toggleEffect, clearEffects] = useEffectsPreference();
+  const [avatar, setAvatar] = useAvatarPreference();
+  // O boneco inicial vai para a sessão uma vez só; trocas depois passam por setHostAvatar.
+  const initialAvatar = useRef(avatar);
   const [fullscreen, setFullscreen] = useState(false);
   const [running, setRunning] = useState<Running | null>(null);
   const [failed, setFailed] = useState(false);
@@ -110,6 +114,7 @@ export function GameScreen({ source, stateStore, logger }: Props) {
         logger,
         hostName: t.host.hostName,
         randomBytes,
+        hostAvatar: initialAvatar.current,
         portCount: portCountOf(source),
         layout: source.kind === 'rom' ? source.system.layout : 'n64',
       });
@@ -191,10 +196,19 @@ export function GameScreen({ source, stateStore, logger }: Props) {
               {exiting ? t.host.saving : running?.keeper ? t.host.saveAndExit : t.host.backToLibrary}
             </button>
           </div>
-          <EffectToggles effects={effects} onToggle={toggleEffect} />
+          <div class="row spread">
+            <EffectToggles effects={effects} onToggle={toggleEffect} />
+            {running && !isTouch && (
+              <ReactionPicker variant="inline" onReact={(r) => running.session.react(r)} />
+            )}
+          </div>
           {isTouch && source.kind === 'rom' && <p class="warn small">{t.host.phoneHostWarning}</p>}
           <div ref={stage} class="host-stage">
             <div ref={container} class="screen" />
+            {running && <ReactionFeed events={running.session.reactions.value} />}
+            {running && isTouch && fullscreen && (
+              <ReactionPicker variant="floating" onReact={(r) => running.session.react(r)} />
+            )}
             <EffectLayer
               stream={running?.stream ?? null}
               effects={effects}
@@ -226,7 +240,15 @@ export function GameScreen({ source, stateStore, logger }: Props) {
       </div>
       <div class="stack">
         {running && <RoomPanel session={running.session} />}
-        {running && <PlayersPanel session={running.session} />}
+        {running && (
+          <PlayersPanel
+            session={running.session}
+            onHostAvatar={(next) => {
+              setAvatar(next);
+              running.session.setHostAvatar(next);
+            }}
+          />
+        )}
         {running && (
           <SavesPanel
             saves={running.emulator.saves}

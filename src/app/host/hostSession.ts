@@ -21,11 +21,14 @@ import {
   leave,
   portChanges,
   portOf,
+  setAvatar,
   setPort,
+  findParticipant,
   type DeviceMode,
   type Port,
   type RoomState,
 } from '../../core/room/room';
+import { MAX_VISIBLE_REACTIONS, type Avatar, type ReactionEvent, type ReactionId } from '../../core/social';
 import { RateLimiter } from '../../core/util/rateLimiter';
 import { generateRoomCode, type RandomBytes } from '../../core/util/roomCode';
 import type { Logger } from '../logger';
@@ -43,6 +46,8 @@ export interface HostSessionDeps {
   readonly transport: HostTransport;
   readonly logger: Logger;
   readonly hostName: string;
+  /** Boneco do host (escolhido no próprio aparelho). */
+  readonly hostAvatar?: Avatar;
   readonly randomBytes: RandomBytes;
   /** Portas do console deste jogo (N64 = 4, SNES = 2, portáteis = 1). */
   readonly portCount?: number;
@@ -60,6 +65,8 @@ interface GuestConnection {
   lastSeq: number | null;
   lastBytes: number | null;
   stats: GuestStats;
+  /** Quando mandou a última reação (para o intervalo mínimo). */
+  lastReactionAt: number;
 }
 
 export type HostStatus = 'idle' | 'opening' | 'open' | 'error';
@@ -79,6 +86,10 @@ export class HostSession {
   });
   /** Velocidade do jogo (1 = normal). */
   readonly speed = signal(1);
+  /** Reações recentes, para mostrar na tela do host. */
+  readonly reactions = signal<readonly ReactionEvent[]>([]);
+  private reactionKey = 0;
+  private hostLastReactionAt = -Infinity;
 
   private readonly guests = new Map<string, GuestConnection>();
   private readonly now: () => number;
@@ -88,7 +99,7 @@ export class HostSession {
 
   constructor(private readonly deps: HostSessionDeps) {
     this.now = deps.now ?? (() => performance.now());
-    this.room.value = createRoom(deps.hostName, deps.portCount ?? config.portCount);
+    this.room.value = createRoom(deps.hostName, deps.portCount ?? config.portCount, deps.hostAvatar);
   }
 
   get guestCount(): number {
@@ -163,6 +174,38 @@ export class HostSession {
     this.deps.logger.info(value === 1 ? 'Velocidade normal' : `Jogo acelerado: ${value}x`);
   }
 
+  /** Reação do próprio host. */
+  react(reaction: ReactionId): void {
+    const now = this.now();
+    if (now - this.hostLastReactionAt < config.reactionCooldownMs) return;
+    this.hostLastReactionAt = now;
+    const host = findParticipant(this.room.value, HOST_ID);
+    if (host) this.publishReaction(reaction, host.name, host.avatar);
+  }
+
+  /** Troca o boneco do host e avisa todo mundo. */
+  setHostAvatar(avatar: Avatar): void {
+    this.room.value = setAvatar(this.room.value, HOST_ID, avatar);
+    this.broadcastLobby();
+  }
+
+  private handleReaction(guest: GuestConnection, reaction: ReactionId): void {
+    const participant = findParticipant(this.room.value, guest.link.peerId);
+    // Quem está em "Só controle" não manda reação (e quem não entrou também não).
+    if (!guest.joined || !participant || participant.mode === 'controller') return;
+    const now = this.now();
+    if (now - guest.lastReactionAt < config.reactionCooldownMs) return;
+    guest.lastReactionAt = now;
+    this.publishReaction(reaction, participant.name, participant.avatar);
+  }
+
+  /** Mostra a reação na tela do host e manda para todos os convidados. */
+  private publishReaction(reaction: ReactionId, name: string, avatar: Avatar): void {
+    const event: ReactionEvent = { key: this.reactionKey++, reaction, name, avatar };
+    this.reactions.value = [...this.reactions.value, event].slice(-MAX_VISIBLE_REACTIONS);
+    this.broadcast({ type: 'reaction', reaction, name, avatar });
+  }
+
   /** Avisa os convidados que o host voltou no tempo (o jogo "pula" para trás para todos). */
   notifyRewound(seconds: number): void {
     this.broadcast({ type: 'rewound', seconds: Math.round(seconds) });
@@ -189,6 +232,7 @@ export class HostSession {
       lastSeq: null,
       lastBytes: null,
       stats: { rttMs: null, kbps: null, fps: null },
+      lastReactionAt: -Infinity,
     };
     this.guests.set(link.peerId, guest);
     guest.unsubscribe.push(
@@ -207,7 +251,9 @@ export class HostSession {
     }
     switch (message.type) {
       case 'hello':
-        return this.handleHello(guest, message.v, message.name, message.mode);
+        return this.handleHello(guest, message.v, message.name, message.mode, message.avatar);
+      case 'react':
+        return this.handleReaction(guest, message.reaction);
       case 'ping':
         return guest.link.sendControl({ type: 'pong', ts: message.ts } satisfies HostMessage);
       case 'rtt':
@@ -216,7 +262,13 @@ export class HostSession {
     }
   }
 
-  private handleHello(guest: GuestConnection, version: number, name: string, mode: DeviceMode): void {
+  private handleHello(
+    guest: GuestConnection,
+    version: number,
+    name: string,
+    mode: DeviceMode,
+    avatar: Avatar | undefined,
+  ): void {
     if (guest.joined) return;
     if (version !== PROTOCOL_VERSION) {
       guest.link.sendControl({ type: 'error', code: 'version-mismatch' } satisfies HostMessage);
@@ -224,7 +276,7 @@ export class HostSession {
       return;
     }
     const id = guest.link.peerId;
-    this.room.value = join(this.room.value, id, name, mode);
+    this.room.value = join(this.room.value, id, name, mode, avatar);
     guest.joined = true;
     const port = portOf(this.room.value, id);
     guest.link.sendControl({
@@ -286,7 +338,12 @@ export class HostSession {
   private broadcastLobby(): void {
     this.broadcast({
       type: 'lobby',
-      players: this.room.value.participants.map(({ name, port, isHost }) => ({ name, port, isHost })),
+      players: this.room.value.participants.map(({ name, port, isHost, avatar }) => ({
+        name,
+        port,
+        isHost,
+        avatar,
+      })),
     });
   }
 

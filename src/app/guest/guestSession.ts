@@ -18,6 +18,7 @@ import {
 } from '../../core/protocol/messages';
 import { nextSeq } from '../../core/protocol/seq';
 import type { DeviceMode, Port } from '../../core/room/room';
+import { MAX_VISIBLE_REACTIONS, type Avatar, type ReactionEvent, type ReactionId } from '../../core/social';
 import type { Logger } from '../logger';
 
 export type GuestStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -43,11 +44,17 @@ export class GuestSession {
   readonly speed = signal(1);
   /** Botões que este aparelho mostra (conforme o console do jogo). */
   readonly layout = signal<ControllerLayout>('n64');
+  /** Reações recentes de todos (inclusive as minhas, que voltam pelo host). */
+  readonly reactions = signal<readonly ReactionEvent[]>([]);
+  private reactionKey = 0;
+  private lastReactionAt = -Infinity;
   /** Último aviso de "voltar no tempo" (segundos e quando chegou), para mostrar por alguns segundos. */
   readonly rewound = signal<{ seconds: number; at: number } | null>(null);
 
   /** Como este aparelho participa (definido ao entrar). */
   mode: DeviceMode = 'play';
+  /** Boneco escolhido ao entrar. */
+  avatar: Avatar | undefined;
 
   private link: Link | null = null;
   private readonly unsubscribe: Unsubscribe[] = [];
@@ -61,11 +68,12 @@ export class GuestSession {
     this.now = deps.now ?? (() => performance.now());
   }
 
-  async join(roomCode: string, name: string, mode: DeviceMode = 'play'): Promise<void> {
+  async join(roomCode: string, name: string, mode: DeviceMode = 'play', avatar?: Avatar): Promise<void> {
     const { transport, logger } = this.deps;
     this.status.value = 'connecting';
     this.error.value = null;
     this.mode = mode;
+    this.avatar = avatar;
     this.unsubscribe.push(transport.onMedia((stream, pc) => this.handleMedia(stream, pc)));
     try {
       this.link = await transport.join(roomCode);
@@ -87,7 +95,7 @@ export class GuestSession {
     // Repete o "olá" até o host responder (uma mensagem pode se perder enquanto a conexão se ajeita);
     // o host ignora repetições. Sem resposta no prazo, mostra erro em vez de ficar "Conectando…".
     const hello = () =>
-      link.sendControl({ type: 'hello', v: PROTOCOL_VERSION, name, mode } satisfies GuestMessage);
+      link.sendControl({ type: 'hello', v: PROTOCOL_VERSION, name, mode, avatar } satisfies GuestMessage);
     hello();
     const startedAt = this.now();
     const retry = setInterval(() => {
@@ -125,6 +133,16 @@ export class GuestSession {
     this.lastSentAt = now;
   }
 
+  /** Manda uma reação (respeitando o intervalo mínimo; o host confere de novo). */
+  react(reaction: ReactionId): boolean {
+    const now = this.now();
+    if (!this.link?.isOpen || this.mode === 'controller') return false;
+    if (now - this.lastReactionAt < config.reactionCooldownMs) return false;
+    this.lastReactionAt = now;
+    this.link.sendControl({ type: 'react', reaction } satisfies GuestMessage);
+    return true;
+  }
+
   leave(): void {
     this.timers.splice(0).forEach(clearInterval);
     this.unsubscribe.splice(0).forEach((fn) => fn());
@@ -157,6 +175,11 @@ export class GuestSession {
       case 'speed':
         this.speed.value = message.multiplier;
         return;
+      case 'reaction': {
+        const event: ReactionEvent = { key: this.reactionKey++, ...message };
+        this.reactions.value = [...this.reactions.value, event].slice(-MAX_VISIBLE_REACTIONS);
+        return;
+      }
       case 'rewound':
         this.rewound.value = { seconds: message.seconds, at: this.now() };
         return;

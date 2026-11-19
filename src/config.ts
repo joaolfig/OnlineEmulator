@@ -28,6 +28,10 @@ export const config = {
   helloRetryMs: 1500,
   /** Limite de mensagens de controle por segundo por convidado (o resto é descartado). */
   maxControlMessagesPerSecond: 30,
+  /** Intervalo mínimo entre reações de um mesmo jogador (evita encher a tela). */
+  reactionCooldownMs: 1500,
+  /** Quanto tempo cada reação fica na tela. */
+  reactionVisibleMs: 3500,
 
   saves: {
     /** Grava a memória do cartucho no navegador (o próprio EmulatorJS só grava a cada 5 min). */
