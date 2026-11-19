@@ -7,12 +7,12 @@ import { isDebugEnabled, Logger } from '../../app/logger';
 import { config } from '../../config';
 import { DEVICE_MODES, type DeviceMode } from '../../core/room/room';
 import { isValidRoomCode, normalizeRoomCode } from '../../core/util/roomCode';
+import { enterFullscreen, isTouchDevice } from '../shared/device';
+import { createTouchState, readTouch, TouchControls } from '../shared/TouchControls';
 import { PORT_COLORS, t } from '../strings';
-import { createTouchState, readTouch, TouchControls } from './TouchControls';
 
 const NAME_KEY = 'name';
 const MODE_KEY = 'mode';
-const isTouchDevice = () => matchMedia('(pointer: coarse)').matches;
 const isDeviceMode = (value: string | null): value is DeviceMode =>
   (DEVICE_MODES as readonly (string | null)[]).includes(value);
 
@@ -143,16 +143,7 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
     return startInputLoop((pad) => session.tick(pad), isTouch ? [() => readTouch(touch)] : []);
   }, [session, touch, isTouch, mode]);
 
-  const fullscreen = async () => {
-    try {
-      await document.documentElement.requestFullscreen();
-      await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.(
-        'landscape',
-      );
-    } catch {
-      // iOS não suporta tela cheia/travar orientação: segue sem.
-    }
-  };
+  const fullscreen = () => enterFullscreen(document.documentElement);
 
   const playerColor = hasPort ? PORT_COLORS[port % PORT_COLORS.length] : undefined;
 

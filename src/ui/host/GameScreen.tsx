@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Emulator } from '../../adapters/emulator/types';
 import { PeerJsHostTransport } from '../../adapters/net/peerjs';
 import type { StateStore } from '../../adapters/storage/stateStore';
@@ -8,6 +8,8 @@ import { SaveKeeper } from '../../app/host/saveKeeper';
 import { startInputLoop } from '../../app/inputLoop';
 import type { Logger } from '../../app/logger';
 import { config } from '../../config';
+import { enterFullscreen, exitFullscreen, isTouchDevice } from '../shared/device';
+import { createTouchState, readTouch, TouchControls } from '../shared/TouchControls';
 import { t } from '../strings';
 import { LogPanel } from './LogPanel';
 import { PlayersPanel } from './PlayersPanel';
@@ -32,6 +34,10 @@ const randomBytes = (length: number) => crypto.getRandomValues(new Uint8Array(le
 
 export function GameScreen({ source, stateStore, logger }: Props) {
   const container = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const isTouch = useMemo(isTouchDevice, []);
+  const touch = useMemo(createTouchState, []);
+  const [fullscreen, setFullscreen] = useState(false);
   const [running, setRunning] = useState<Running | null>(null);
   const [failed, setFailed] = useState(false);
   const [exiting, setExiting] = useState(false);
@@ -81,7 +87,8 @@ export function GameScreen({ source, stateStore, logger }: Props) {
         randomBytes,
       });
       session = s;
-      stopInput = startInputLoop((pad) => s.setLocalPad(pad));
+      // No celular, o host joga pelos mesmos controles touch do convidado.
+      stopInput = startInputLoop((pad) => s.setLocalPad(pad), isTouch ? [() => readTouch(touch)] : []);
       setRunning({ emulator, session: s, stream, keeper });
       await s.open(stream);
     })().catch((err: unknown) => {
@@ -96,7 +103,7 @@ export function GameScreen({ source, stateStore, logger }: Props) {
       session?.close();
       emulator.destroy();
     };
-  }, [source, stateStore, logger]);
+  }, [source, stateStore, logger, isTouch, touch]);
 
   // Aba em segundo plano: avisa (o jogo pausa para todos) e salva tudo, por garantia.
   // Fechar a aba com amigos conectados: pede confirmação.
@@ -122,9 +129,19 @@ export function GameScreen({ source, stateStore, logger }: Props) {
     return () => abort.abort();
   }, [running, logger]);
 
+  useEffect(() => {
+    const update = () => setFullscreen(document.fullscreenElement === stage.current);
+    document.addEventListener('fullscreenchange', update);
+    return () => document.removeEventListener('fullscreenchange', update);
+  }, []);
+
+  const toggleFullscreen = () =>
+    fullscreen ? exitFullscreen() : stage.current && enterFullscreen(stage.current);
+
   // O EmulatorJS não pode ser reiniciado na mesma página: voltar à biblioteca = recarregar.
   const exit = async () => {
     setExiting(true);
+    await exitFullscreen();
     await running?.keeper?.saveAll();
     location.reload();
   };
@@ -139,9 +156,21 @@ export function GameScreen({ source, stateStore, logger }: Props) {
               {exiting ? t.host.saving : running?.keeper ? t.host.saveAndExit : t.host.backToLibrary}
             </button>
           </div>
-          <div ref={container} class="screen" />
+          {isTouch && source.kind === 'rom' && <p class="warn small">{t.host.phoneHostWarning}</p>}
+          <div ref={stage} class="host-stage">
+            <div ref={container} class="screen" />
+            {/* Controles na tela só em tela cheia: em pé, o jogo fica pequeno demais para dividir espaço. */}
+            {isTouch && fullscreen && <TouchControls state={touch} />}
+            <button
+              class="stage-fullscreen"
+              onClick={() => void toggleFullscreen()}
+              aria-label={fullscreen ? t.host.exitFullscreen : t.host.fullscreen}
+            >
+              {fullscreen ? '✕' : '⛶'}
+            </button>
+          </div>
           {failed && <p class="err">{t.host.roomError}</p>}
-          <p class="muted">{t.host.controlsHint}</p>
+          <p class="muted">{isTouch ? t.host.touchHint : t.host.controlsHint}</p>
         </section>
         {running && <VideoPanel session={running.session} stream={running.stream} />}
       </div>

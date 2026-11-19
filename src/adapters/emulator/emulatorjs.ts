@@ -8,6 +8,36 @@ const AUDIO_TAP_TIMEOUT_MS = 3000;
 /** Remove todos os mapeamentos de teclado/controle do próprio EmulatorJS: todo input passa pelo nosso app. */
 const NO_CONTROLS = { 0: {}, 1: {}, 2: {}, 3: {} };
 
+/**
+ * Esconde os botões do EmulatorJS que o app já oferece (saves, tela cheia) ou que conflitam com ele
+ * (netplay próprio, gamepad virtual, cheats). Ficam: pausar, volume e configurações de vídeo.
+ */
+const HIDDEN_BUTTONS = {
+  restart: false,
+  fullscreen: false,
+  saveState: false,
+  loadState: false,
+  quickSave: false,
+  quickLoad: false,
+  saveSavFiles: false,
+  loadSavFiles: false,
+  screenRecord: false,
+  screenshot: false,
+  gamepad: false,
+  cheat: false,
+  cacheManager: false,
+  exitEmulation: false,
+  netplay: false,
+  diskButton: false,
+  contextMenu: false,
+};
+
+const DEFAULT_OPTIONS = {
+  // O gamepad virtual do EmulatorJS controla sempre o P1 direto, ignorando a troca de portas.
+  // O app usa os próprios controles touch no lugar dele.
+  'virtual-gamepad': 'disabled',
+};
+
 export interface EmulatorJSOptions {
   readonly rom: File;
   readonly core: 'n64';
@@ -42,6 +72,8 @@ export class EmulatorJSAdapter implements Emulator {
         EJS_defaultControls: NO_CONTROLS,
         // Sem isso, controles salvos pelo EmulatorJS sobrescreveriam NO_CONTROLS.
         EJS_disableLocalStorage: true,
+        EJS_Buttons: HIDDEN_BUTTONS,
+        EJS_defaultOptions: DEFAULT_OPTIONS,
         EJS_onGameStart: () => {
           const ejs = window.EJS_emulator;
           if (!ejs) return reject(new EmulatorLoadError('EmulatorJS iniciou sem expor a instância'));

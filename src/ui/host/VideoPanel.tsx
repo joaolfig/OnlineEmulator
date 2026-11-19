@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { HostSession } from '../../app/host/hostSession';
 import { config } from '../../config';
+import { Collapsible } from '../shared/Collapsible';
+import { isTouchDevice } from '../shared/device';
 import { t } from '../strings';
 
 export function VideoPanel({ session, stream }: { session: HostSession; stream: MediaStream }) {
   const settings = session.videoSettings.value;
-  const [showPreview, setShowPreview] = useState(true);
+  // No celular o preview começa desligado: é um segundo vídeo para um aparelho que já está no limite.
+  const [showPreview, setShowPreview] = useState(() => !isTouchDevice());
   const video = useRef<HTMLVideoElement>(null);
 
   // Desligado, o preview não consome nada: o <video> fica sem stream.
@@ -14,8 +17,7 @@ export function VideoPanel({ session, stream }: { session: HostSession; stream: 
   }, [showPreview, stream]);
 
   return (
-    <section class="panel stack">
-      <h2>{t.host.video}</h2>
+    <Collapsible title={t.host.video} defaultOpen={!isTouchDevice()}>
       <div class="row">
         <label class="check">
           {t.host.bitrate}
@@ -65,6 +67,6 @@ export function VideoPanel({ session, stream }: { session: HostSession; stream: 
         autoplay
         aria-label={t.host.preview}
       />
-    </section>
+    </Collapsible>
   );
 }

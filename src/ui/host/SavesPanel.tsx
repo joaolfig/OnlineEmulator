@@ -3,6 +3,8 @@ import type { EmulatorSaves } from '../../adapters/emulator/types';
 import { datedFileName, readFileBytes, saveFile } from '../../adapters/storage/files';
 import type { SaveKeeper } from '../../app/host/saveKeeper';
 import type { Logger } from '../../app/logger';
+import { Collapsible } from '../shared/Collapsible';
+import { isTouchDevice } from '../shared/device';
 import { formatTime, t } from '../strings';
 
 interface Props {
@@ -19,10 +21,9 @@ export function SavesPanel({ saves, keeper, fileBaseName, logger }: Props) {
 
   if (!saves) {
     return (
-      <section class="panel">
-        <h2>{t.host.saves}</h2>
+      <Collapsible title={t.host.saves} defaultOpen={!isTouchDevice()}>
         <p class="muted">{t.host.savesUnavailable}</p>
-      </section>
+      </Collapsible>
     );
   }
 
@@ -40,8 +41,7 @@ export function SavesPanel({ saves, keeper, fileBaseName, logger }: Props) {
   };
 
   return (
-    <section class="panel stack">
-      <h2>{t.host.saves}</h2>
+    <Collapsible title={t.host.saves} defaultOpen={!isTouchDevice()}>
       {keeper && (
         <div class="row spread">
           <span class="muted small">
@@ -96,6 +96,6 @@ export function SavesPanel({ saves, keeper, fileBaseName, logger }: Props) {
           }, 'Não foi possível importar o arquivo');
         }}
       />
-    </section>
+    </Collapsible>
   );
 }

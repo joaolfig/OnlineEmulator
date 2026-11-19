@@ -77,6 +77,12 @@ export const t = {
     keepVisible: 'Mantenha esta aba visível: em segundo plano o navegador pausa o jogo para todos.',
     backToLibrary: 'Voltar à biblioteca',
     saveAndExit: 'Sair e salvar',
+    fullscreen: 'Tela cheia',
+    exitFullscreen: 'Sair da tela cheia',
+    touchHint:
+      'Toque em ⛶ para jogar em tela cheia com os botões na tela. Controle Bluetooth também funciona.',
+    phoneHostWarning:
+      'Rodar o jogo no celular é pesado e pode ficar lento (principalmente N64). Para jogar liso, use um PC como host; o celular funciona muito bem como convidado.',
     saving: 'Salvando…',
     controlsHint:
       'Seus controles: WASD/setas, K = A, J = B, L = Z, Enter = Start, Q/E = L/R, T/F/G/H = C. Controle USB/Bluetooth também funciona.',

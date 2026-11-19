@@ -453,3 +453,78 @@ th {
 .hud .pill {
   border: 2px solid transparent;
 }
+
+/* ---------- Tela do jogo no host (tela cheia + controles touch) ---------- */
+.host-stage {
+  position: relative;
+}
+.host-stage:fullscreen {
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.host-stage:fullscreen .screen {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+.stage-fullscreen {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 6;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.6);
+}
+/* Sobre o jogo, a camada de toque só captura toques nos próprios controles. */
+.host-stage .touch {
+  z-index: 5;
+  pointer-events: none;
+}
+.host-stage .touch > * {
+  pointer-events: auto;
+}
+
+/* ---------- Painéis recolhíveis ---------- */
+.collapsible > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+.collapsible > summary h2 {
+  display: inline;
+  margin: 0;
+}
+.collapsible > summary::before {
+  content: '▸ ';
+  color: var(--muted);
+}
+.collapsible[open] > summary::before {
+  content: '▾ ';
+}
+.collapsible-body {
+  margin-top: 10px;
+}
+
+/* ---------- Celular: o jogo primeiro, sem margens desperdiçadas ---------- */
+@media (max-width: 600px) {
+  .page {
+    padding: 10px;
+    gap: 10px;
+  }
+  .panel {
+    padding: 10px;
+  }
+  .room-code {
+    font-size: 24px;
+  }
+}
+/* Em tela cheia, o botão de sair vai para o centro, longe dos botões L/R. */
+.host-stage:fullscreen .stage-fullscreen {
+  right: 50%;
+  transform: translateX(50%);
+}

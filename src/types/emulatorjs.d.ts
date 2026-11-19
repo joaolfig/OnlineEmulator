@@ -39,6 +39,10 @@ interface Window {
   EJS_startOnLoaded?: boolean;
   EJS_defaultControls?: EjsControls;
   EJS_disableLocalStorage?: boolean;
+  /** Botões da barra de menus do EmulatorJS: false esconde. */
+  EJS_Buttons?: Record<string, boolean>;
+  /** Valores iniciais das configurações do EmulatorJS (ex.: "virtual-gamepad"). */
+  EJS_defaultOptions?: Record<string, string>;
   EJS_onGameStart?: () => void;
   EJS_emulator?: EjsEmulator;
 }
