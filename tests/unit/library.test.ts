@@ -40,6 +40,12 @@ describe('capas e nomes do catálogo', () => {
       tags: 'USA · Rev 1',
     });
     expect(splitGameName('meu_jogo')).toEqual({ title: 'meu_jogo', tags: '' });
+    expect(splitGameName('New Tetris, The (USA)').title).toBe('The New Tetris');
+    expect(splitGameName("Legend of Zelda, The - Majora's Mask (USA)").title).toBe(
+      "The Legend of Zelda - Majora's Mask",
+    );
+    // "A" só no fim da parte antes do traço: não mexe em títulos com vírgula no meio.
+    expect(splitGameName('Hey You, Pikachu! (USA)').title).toBe('Hey You, Pikachu!');
   });
 
   it('gera iniciais para a capa genérica', () => {

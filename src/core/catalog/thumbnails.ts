@@ -11,10 +11,14 @@ export function boxArtUrl(system: string, gameName: string): string {
   return `${THUMBNAILS_BASE}/${encodeURIComponent(system)}/Named_Boxarts/${encodeURIComponent(file)}`;
 }
 
-/** "Mario Party 2 (USA) (Rev 1)" → { title: "Mario Party 2", tags: "USA · Rev 1" } */
+/** "Mario Party 2 (USA) (Rev 1)" → { title: "Mario Party 2", tags: "USA · Rev 1" }; "New Tetris, The" → "The New Tetris". */
 export function splitGameName(name: string): { title: string; tags: string } {
   const tags = [...name.matchAll(/\(([^)]*)\)/g)].map((m) => m[1]).join(' · ');
-  const title = name.replace(/\s*\([^)]*\)/g, '').trim();
+  const title = name
+    .replace(/\s*\([^)]*\)/g, '')
+    .trim()
+    // O No-Intro ordena "The New Tetris" como "New Tetris, The": desfaz para exibir.
+    .replace(/^(.*), (The|A|An)\b(.*)$/, '$2 $1$3');
   return { title: title || name, tags };
 }
 
