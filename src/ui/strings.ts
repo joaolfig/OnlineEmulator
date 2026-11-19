@@ -88,6 +88,19 @@ export const t = {
       'Seus controles: WASD/setas, K = A, J = B, L = Z, Enter = Start, Q/E = L/R, T/F/G/H = C. Controle USB/Bluetooth também funciona.',
   },
 
+  time: {
+    speed: 'Velocidade',
+    normal: 'Normal',
+    speedHint:
+      'Acelerado para todos. "Até" essa velocidade: se o PC não aguentar, o jogo acelera o quanto der. O som fica acelerado também.',
+    rewind: 'Voltar no tempo',
+    step: (seconds: number) => (seconds < 60 ? `${seconds} s` : `${seconds / 60} min`),
+    notYet: 'Ainda não há um ponto tão antigo: o jogo guarda um ponto a cada 10 segundos.',
+    undo: 'Desfazer',
+    rewindHint: (reach: number, memory: string) =>
+      `Dá para voltar até ${reach} s (pontos a cada 10 s, últimos 5 min, ${memory} na memória). Volta o jogo de todo mundo.`,
+  },
+
   guest: {
     title: 'Entrar na sala',
     roomCode: 'Código da sala',
@@ -106,6 +119,9 @@ export const t = {
     } satisfies Record<DeviceMode, { label: string; hint: string }>,
     you: (port: Port) => (port === null ? 'Espectador' : `Você é o P${port + 1}`),
     playerBadge: (port: number) => `P${port + 1}`,
+    speed: (multiplier: number) => `⏩ ${multiplier}x`,
+    rewound: (seconds: number) =>
+      `⏪ O host voltou ${seconds < 60 ? `${seconds} s` : `${seconds / 60} min`} no tempo`,
     waitingForPort: 'Sala cheia: aguardando o host liberar uma porta.',
     disconnected: 'Desconectado do host.',
     rejoin: 'Entrar de novo',

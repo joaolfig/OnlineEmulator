@@ -36,6 +36,19 @@ export const config = {
     autoStatesKept: 3,
   },
 
+  /** "Voltar no tempo": savestates comprimidos na memória, tirados periodicamente. */
+  rewind: {
+    snapshotIntervalMs: 10_000,
+    /** 30 × 10 s = os últimos 5 minutos. */
+    snapshotsKept: 30,
+    /** Botões de voltar, em segundos. */
+    stepsSeconds: [10, 30, 60, 300],
+  },
+
+  /** Velocidades do "acelerar" (1 = normal). O limite real é o quanto o PC aguenta. */
+  speedOptions: [1, 2, 3, 4],
+  maxSpeed: 8,
+
   video: {
     captureFps: 60,
     defaultFps: 60,

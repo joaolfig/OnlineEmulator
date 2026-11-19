@@ -1,5 +1,5 @@
 import { AXIS_LIMIT, EMPTY_PAD, isPressed, type PadState } from '../../core/input/pad';
-import type { Emulator } from './types';
+import type { Emulator, EmulatorSaves } from './types';
 
 const WIDTH = 640;
 const HEIGHT = 480;
@@ -12,8 +12,9 @@ const SPEED = 5;
  * (modo teste na UI e testes ponta a ponta).
  */
 export class FakeEmulator implements Emulator {
-  readonly saves = null;
   private readonly pads = new Map<number, PadState>();
+  private positions: { x: number; y: number }[] = [];
+  private speed = 1;
   private readonly canvas = document.createElement('canvas');
   private audio: AudioContext | null = null;
   private oscillator: OscillatorNode | null = null;
@@ -35,22 +36,23 @@ export class FakeEmulator implements Emulator {
     this.oscillator.connect(gain).connect(this.audio.destination);
     this.oscillator.start();
 
-    const positions = Array.from({ length: this.portCount }, (_, p) => ({ x: 120 + p * 130, y: HEIGHT / 2 }));
+    this.positions = Array.from({ length: this.portCount }, (_, p) => ({ x: 120 + p * 130, y: HEIGHT / 2 }));
     const ctx = this.canvas.getContext('2d');
     if (!ctx) return Promise.reject(new Error('Canvas 2D indisponível'));
 
     const draw = () => {
-      this.frame++;
+      this.frame += this.speed;
       ctx.fillStyle = '#101020';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
       ctx.fillStyle = '#fff';
       ctx.font = '20px monospace';
-      ctx.fillText(`MODO TESTE  frame ${this.frame}`, 20, 34);
+      ctx.fillText(`MODO TESTE  frame ${this.frame}${this.speed > 1 ? `  ⏩ ${this.speed}x` : ''}`, 20, 34);
       let anyA = false;
-      positions.forEach((pos, port) => {
+      this.positions.forEach((pos, port) => {
         const pad = this.pads.get(port) ?? EMPTY_PAD;
-        pos.x = Math.max(20, Math.min(WIDTH - 20, pos.x + (pad.x / AXIS_LIMIT) * SPEED));
-        pos.y = Math.max(60, Math.min(HEIGHT - 20, pos.y + (pad.y / AXIS_LIMIT) * SPEED));
+        const step = SPEED * this.speed;
+        pos.x = Math.max(20, Math.min(WIDTH - 20, pos.x + (pad.x / AXIS_LIMIT) * step));
+        pos.y = Math.max(60, Math.min(HEIGHT - 20, pos.y + (pad.y / AXIS_LIMIT) * step));
         const a = isPressed(pad, 'A');
         anyA ||= a;
         ctx.fillStyle = COLORS[port % COLORS.length] ?? '#fff';
@@ -74,6 +76,28 @@ export class FakeEmulator implements Emulator {
   releaseAll(port: number): void {
     this.pads.set(port, EMPTY_PAD);
   }
+
+  setSpeed(multiplier: number): void {
+    this.speed = Math.max(1, Math.round(multiplier));
+  }
+
+  /** "Savestate" do modo teste: posição das bolinhas e o número do frame. */
+  readonly saves: EmulatorSaves = {
+    saveExtension: 'sav',
+    flushSave: () => Promise.resolve(),
+    exportSave: () => null,
+    importSave: () => {},
+    exportState: () =>
+      new TextEncoder().encode(JSON.stringify({ frame: this.frame, positions: this.positions })),
+    importState: (data) => {
+      const state = JSON.parse(new TextDecoder().decode(data)) as {
+        frame: number;
+        positions: { x: number; y: number }[];
+      };
+      this.frame = state.frame;
+      this.positions = state.positions;
+    },
+  };
 
   captureStream(fps: number): Promise<MediaStream> {
     const stream = this.canvas.captureStream(fps);

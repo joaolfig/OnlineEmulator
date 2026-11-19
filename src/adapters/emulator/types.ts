@@ -12,6 +12,8 @@ export interface Emulator {
   releaseAll(port: number): void;
   /** Vídeo + áudio do jogo, para transmitir aos convidados. */
   captureStream(fps: number): Promise<MediaStream>;
+  /** Velocidade do jogo: 1 = normal, 2 = até 2x mais rápido etc. */
+  setSpeed(multiplier: number): void;
   readonly saves: EmulatorSaves | null;
   destroy(): void;
 }

@@ -528,3 +528,24 @@ th {
   right: 50%;
   transform: translateX(50%);
 }
+
+/* ---------- Controles de tempo ---------- */
+.segmented {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.segmented button {
+  padding: 6px 12px;
+}
+.toast {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  padding: 8px 16px;
+  border-radius: 99px;
+  font-weight: 600;
+  pointer-events: none;
+}

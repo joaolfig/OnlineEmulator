@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Emulator } from '../../adapters/emulator/types';
 import { PeerJsHostTransport } from '../../adapters/net/peerjs';
+import { gunzip, gzip } from '../../adapters/storage/compression';
 import type { StateStore } from '../../adapters/storage/stateStore';
 import { createEmulator, gameTitle, type GameSource } from '../../app/host/gameSource';
 import { HostSession } from '../../app/host/hostSession';
+import { RewindBuffer } from '../../app/host/rewindBuffer';
 import { SaveKeeper } from '../../app/host/saveKeeper';
 import { startInputLoop } from '../../app/inputLoop';
 import type { Logger } from '../../app/logger';
@@ -15,6 +17,7 @@ import { LogPanel } from './LogPanel';
 import { PlayersPanel } from './PlayersPanel';
 import { RoomPanel } from './RoomPanel';
 import { SavesPanel } from './SavesPanel';
+import { TimePanel } from './TimePanel';
 import { VideoPanel } from './VideoPanel';
 
 interface Running {
@@ -22,6 +25,7 @@ interface Running {
   readonly session: HostSession;
   readonly stream: MediaStream;
   readonly keeper: SaveKeeper | null;
+  readonly rewind: RewindBuffer | null;
 }
 
 interface Props {
@@ -47,6 +51,7 @@ export function GameScreen({ source, stateStore, logger }: Props) {
     const emulator = createEmulator(source);
     let session: HostSession | null = null;
     let keeper: SaveKeeper | null = null;
+    let rewind: RewindBuffer | null = null;
     let stopInput: (() => void) | null = null;
     let disposed = false;
 
@@ -74,6 +79,17 @@ export function GameScreen({ source, stateStore, logger }: Props) {
         });
         keeper.start();
       }
+      if (saves) {
+        rewind = new RewindBuffer({
+          saves,
+          logger,
+          intervalMs: config.rewind.snapshotIntervalMs,
+          capacity: config.rewind.snapshotsKept,
+          compress: gzip,
+          decompress: gunzip,
+        });
+        rewind.start();
+      }
 
       const stream = await emulator.captureStream(config.video.captureFps);
       if (stream.getAudioTracks().length === 0) {
@@ -89,7 +105,7 @@ export function GameScreen({ source, stateStore, logger }: Props) {
       session = s;
       // No celular, o host joga pelos mesmos controles touch do convidado.
       stopInput = startInputLoop((pad) => s.setLocalPad(pad), isTouch ? [() => readTouch(touch)] : []);
-      setRunning({ emulator, session: s, stream, keeper });
+      setRunning({ emulator, session: s, stream, keeper, rewind });
       await s.open(stream);
     })().catch((err: unknown) => {
       logger.error('Falha ao iniciar', err);
@@ -100,6 +116,7 @@ export function GameScreen({ source, stateStore, logger }: Props) {
       disposed = true;
       stopInput?.();
       keeper?.stop();
+      rewind?.stop();
       session?.close();
       emulator.destroy();
     };
@@ -172,6 +189,7 @@ export function GameScreen({ source, stateStore, logger }: Props) {
           {failed && <p class="err">{t.host.roomError}</p>}
           <p class="muted">{isTouch ? t.host.touchHint : t.host.controlsHint}</p>
         </section>
+        {running && <TimePanel session={running.session} rewind={running.rewind} />}
         {running && <VideoPanel session={running.session} stream={running.stream} />}
       </div>
       <div class="stack">

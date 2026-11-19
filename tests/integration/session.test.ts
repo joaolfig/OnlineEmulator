@@ -13,7 +13,11 @@ class RecordingEmulator implements Emulator {
   readonly saves = null;
   readonly inputs = new Map<number, PadState>();
   readonly released: number[] = [];
+  speed = 1;
   start = () => Promise.resolve();
+  setSpeed(multiplier: number) {
+    this.speed = multiplier;
+  }
   captureStream = () => Promise.resolve(FAKE_STREAM);
   destroy = () => {};
   setInput(port: number, pad: PadState) {
@@ -181,6 +185,27 @@ describe('host + convidados (transporte em memória)', () => {
     // O host não consegue colocar a TV numa porta.
     host.setPort(host.room.value.participants.find((p) => p.name === 'TV')?.id ?? '', 2);
     expect(tv.port.value).toBeNull();
+  });
+
+  it('acelerar muda o emulador e avisa quem está na sala e quem entra depois', async () => {
+    const { host, emulator, addGuest } = await setup();
+    const ana = await addGuest('Ana');
+    host.setSpeed(3);
+    expect(emulator.speed).toBe(3);
+    expect(ana.speed.value).toBe(3);
+    const bia = await addGuest('Bia');
+    expect(bia.speed.value).toBe(3);
+    host.setSpeed(99);
+    expect(emulator.speed).toBe(8); // limitado ao máximo
+    host.setSpeed(1);
+    expect(ana.speed.value).toBe(1);
+  });
+
+  it('convidados recebem o aviso de voltar no tempo', async () => {
+    const { host, addGuest } = await setup();
+    const ana = await addGuest('Ana');
+    host.notifyRewound(30);
+    expect(ana.rewound.value?.seconds).toBe(30);
   });
 
   it('sala inexistente gera erro amigável', async () => {

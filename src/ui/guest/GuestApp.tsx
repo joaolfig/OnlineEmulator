@@ -13,6 +13,7 @@ import { PORT_COLORS, t } from '../strings';
 
 const NAME_KEY = 'name';
 const MODE_KEY = 'mode';
+const REWOUND_NOTICE_MS = 4000;
 const isDeviceMode = (value: string | null): value is DeviceMode =>
   (DEVICE_MODES as readonly (string | null)[]).includes(value);
 
@@ -145,6 +146,16 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
 
   const fullscreen = () => enterFullscreen(document.documentElement);
 
+  // Aviso de "voltar no tempo" aparece por alguns segundos.
+  const rewound = session.rewound.value;
+  const [showRewound, setShowRewound] = useState(false);
+  useEffect(() => {
+    if (!rewound) return;
+    setShowRewound(true);
+    const timer = setTimeout(() => setShowRewound(false), REWOUND_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [rewound]);
+
   const playerColor = hasPort ? PORT_COLORS[port % PORT_COLORS.length] : undefined;
 
   return (
@@ -163,11 +174,17 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
         <span class="pill mono">
           ping {session.rttMs.value ?? '?'} ms{showVideo && ` · ${session.fps.value ?? '?'} fps`}
         </span>
+        {session.speed.value > 1 && (
+          <span class="pill" data-testid="speed">
+            {t.guest.speed(session.speed.value)}
+          </span>
+        )}
         <span class="grow" />
         <button onClick={() => void fullscreen()} aria-label={t.guest.fullscreen}>
           ⛶
         </button>
       </div>
+      {showRewound && rewound && <div class="toast">{t.guest.rewound(rewound.seconds)}</div>}
       {mode !== 'watch' && port === null && session.status.value === 'connected' && (
         <div class="overlay-message">{t.guest.waitingForPort}</div>
       )}

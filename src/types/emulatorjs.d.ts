@@ -14,6 +14,10 @@ interface EjsGameManager {
   simulateInput(player: number, index: number, value: number): void;
   /** Pede ao core para escrever a memória do cartucho nos arquivos de save. */
   saveSaveFiles(): void;
+  /** Liga (1) ou desliga (0) o avanço rápido. */
+  toggleFastForward(active: number): void;
+  /** Velocidade máxima do avanço rápido (0 = sem limite). */
+  setFastForwardRatio(ratio: number): void;
   getSaveFile(save?: boolean): Uint8Array | null;
   getSaveFilePath(): string;
   loadSaveFiles(): void;

@@ -38,6 +38,10 @@ export class GuestSession {
   readonly stream = signal<MediaStream | null>(null);
   readonly rttMs = signal<number | null>(null);
   readonly fps = signal<number | null>(null);
+  /** Velocidade do jogo definida pelo host (1 = normal). */
+  readonly speed = signal(1);
+  /** Último aviso de "voltar no tempo" (segundos e quando chegou), para mostrar por alguns segundos. */
+  readonly rewound = signal<{ seconds: number; at: number } | null>(null);
 
   /** Como este aparelho participa (definido ao entrar). */
   mode: DeviceMode = 'play';
@@ -129,6 +133,12 @@ export class GuestSession {
         this.link?.sendControl({ type: 'rtt', ms: rtt } satisfies GuestMessage);
         return;
       }
+      case 'speed':
+        this.speed.value = message.multiplier;
+        return;
+      case 'rewound':
+        this.rewound.value = { seconds: message.seconds, at: this.now() };
+        return;
       case 'error':
         this.status.value = 'error';
         this.error.value = message.code;

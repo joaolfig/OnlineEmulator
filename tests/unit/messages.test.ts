@@ -43,3 +43,16 @@ describe('parseHostMessage', () => {
     ['código de erro desconhecido', { type: 'error', code: 'boom' }],
   ])('rejeita %s', (_, data) => expect(parseHostMessage(data)).toBeNull());
 });
+
+describe('avisos de tempo', () => {
+  it('aceita velocidade e voltar no tempo dentro dos limites', () => {
+    expect(parseHostMessage({ type: 'speed', multiplier: 2 })).toEqual({ type: 'speed', multiplier: 2 });
+    expect(parseHostMessage({ type: 'rewound', seconds: 30 })).toEqual({ type: 'rewound', seconds: 30 });
+  });
+
+  it.each([
+    ['velocidade absurda', { type: 'speed', multiplier: 1000 }],
+    ['velocidade menor que 1', { type: 'speed', multiplier: 0 }],
+    ['voltar segundos negativos', { type: 'rewound', seconds: -10 }],
+  ])('rejeita %s', (_, data) => expect(parseHostMessage(data)).toBeNull());
+});

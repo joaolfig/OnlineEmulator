@@ -72,6 +72,8 @@ export class HostSession {
     maxBitrate: config.video.defaultBitrate,
     maxFramerate: config.video.defaultFps,
   });
+  /** Velocidade do jogo (1 = normal). */
+  readonly speed = signal(1);
 
   private readonly guests = new Map<string, GuestConnection>();
   private readonly now: () => number;
@@ -143,6 +145,22 @@ export class HostSession {
     for (const guest of this.guests.values()) this.tune(guest);
   }
 
+  /** Acelera (ou volta ao normal) o jogo para todos e avisa os convidados. */
+  setSpeed(multiplier: number): void {
+    const value = Math.min(config.maxSpeed, Math.max(1, multiplier));
+    if (value === this.speed.value) return;
+    this.speed.value = value;
+    this.deps.emulator.setSpeed(value);
+    this.broadcast({ type: 'speed', multiplier: value });
+    this.deps.logger.info(value === 1 ? 'Velocidade normal' : `Jogo acelerado: ${value}x`);
+  }
+
+  /** Avisa os convidados que o host voltou no tempo (o jogo "pula" para trás para todos). */
+  notifyRewound(seconds: number): void {
+    this.broadcast({ type: 'rewound', seconds: Math.round(seconds) });
+    this.deps.logger.info(`Voltou ${seconds} s no tempo`);
+  }
+
   close(): void {
     clearInterval(this.statsTimer);
     this.unsubscribeLinks?.();
@@ -202,6 +220,9 @@ export class HostSession {
     guest.joined = true;
     const port = portOf(this.room.value, id);
     guest.link.sendControl({ type: 'welcome', port } satisfies HostMessage);
+    if (this.speed.value !== 1) {
+      guest.link.sendControl({ type: 'speed', multiplier: this.speed.value } satisfies HostMessage);
+    }
     const role = port === null ? 'espectador' : `P${port + 1}`;
     this.deps.logger.success(`${name} entrou como ${role}${mode === 'controller' ? ' (só controle)' : ''}`);
     // Aparelho só de controle não recebe vídeo: economiza o processador do host, o Wi-Fi e a bateria.
@@ -246,12 +267,15 @@ export class HostSession {
     this.guests.get(participantId)?.link.sendControl(message);
   }
 
+  private broadcast(message: HostMessage): void {
+    for (const guest of this.guests.values()) if (guest.joined) guest.link.sendControl(message);
+  }
+
   private broadcastLobby(): void {
-    const message: HostMessage = {
+    this.broadcast({
       type: 'lobby',
       players: this.room.value.participants.map(({ name, port, isHost }) => ({ name, port, isHost })),
-    };
-    for (const guest of this.guests.values()) if (guest.joined) guest.link.sendControl(message);
+    });
   }
 
   private tune(guest: GuestConnection): void {

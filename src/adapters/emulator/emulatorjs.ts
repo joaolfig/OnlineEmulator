@@ -100,6 +100,17 @@ export class EmulatorJSAdapter implements Emulator {
     this.padApplier?.release(port);
   }
 
+  setSpeed(multiplier: number): void {
+    const gm = this.ejs?.gameManager;
+    if (!gm) return;
+    if (multiplier <= 1) {
+      gm.toggleFastForward(0);
+      return;
+    }
+    gm.setFastForwardRatio(multiplier);
+    gm.toggleFastForward(1);
+  }
+
   async captureStream(fps: number): Promise<MediaStream> {
     const ejs = this.requireStarted();
     // Plano A: função do próprio EmulatorJS (usada na gravação de tela), já traz o áudio do OpenAL.

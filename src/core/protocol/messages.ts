@@ -35,6 +35,15 @@ export const HostMessageSchema = v.variant('type', [
   v.object({ type: v.literal('port'), port: Port }),
   v.object({ type: v.literal('lobby'), players: v.pipe(v.array(LobbyPlayer), v.maxLength(32)) }),
   v.object({ type: v.literal('pong'), ts: Timestamp }),
+  // Avisos para os convidados entenderem o que aconteceu com o jogo.
+  v.object({
+    type: v.literal('speed'),
+    multiplier: v.pipe(v.number(), v.minValue(1), v.maxValue(config.maxSpeed)),
+  }),
+  v.object({
+    type: v.literal('rewound'),
+    seconds: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(3600)),
+  }),
   v.object({
     type: v.literal('error'),
     code: v.picklist(['version-mismatch', 'rejected']),
