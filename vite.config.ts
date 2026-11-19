@@ -13,6 +13,8 @@ export default defineConfig({
         index: resolve(import.meta.dirname, 'index.html'),
         host: resolve(import.meta.dirname, 'host.html'),
         play: resolve(import.meta.dirname, 'play.html'),
+        // Laboratório de efeitos visuais: página separada, sem link no app.
+        lab: resolve(import.meta.dirname, 'lab.html'),
       },
     },
   },

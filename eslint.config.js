@@ -9,7 +9,7 @@ export default tseslint.config(
   ...tseslint.configs.strict,
   {
     // As regras de hooks valem para Preact também (mesmos nomes: useEffect, useMemo…).
-    files: ['src/ui/**/*.tsx'],
+    files: ['src/ui/**/*.tsx', 'src/lab/**/*.tsx'],
     plugins: { 'react-hooks': reactHooks },
     rules: {
       'react-hooks/rules-of-hooks': 'error',
@@ -40,11 +40,11 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['**/adapters/**', '**/app/**', '**/ui/**'],
+              group: ['**/adapters/**', '**/app/**', '**/ui/**', '**/lab/**'],
               message: 'core/ não pode importar outras camadas.',
             },
             {
-              group: ['peerjs', 'preact', 'preact/*', '@preact/*', 'idb'],
+              group: ['peerjs', 'preact', 'preact/*', '@preact/*', 'idb', 'three', 'three/*'],
               message: 'core/ não pode depender de bibliotecas de browser/UI.',
             },
           ],
@@ -60,7 +60,32 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            { group: ['**/app/**', '**/ui/**'], message: 'adapters/ não podem importar app/ nem ui/.' },
+            {
+              group: ['**/app/**', '**/ui/**', '**/lab/**'],
+              message: 'adapters/ não podem importar app/ nem ui/.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // O laboratório de visual é experimental: o app de verdade nunca depende dele (nem do three.js).
+    files: [
+      'src/app/**',
+      'src/ui/**',
+      'src/config.ts',
+      'src/entries/host.tsx',
+      'src/entries/play.tsx',
+      'src/entries/landing.tsx',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['**/lab/**'], message: 'O app principal não pode usar o laboratório de visual.' },
+            { group: ['three', 'three/*'], message: 'three.js é só do laboratório.' },
           ],
         },
       ],
