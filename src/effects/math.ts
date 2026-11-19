@@ -1,4 +1,4 @@
-// Funções puras do laboratório de visual (testadas em tests/unit/lab.test.ts).
+// Funções puras dos efeitos visuais (testadas em tests/unit/effects.test.ts).
 
 import { AXIS_LIMIT, isPressed, type PadState } from '../core/input/pad';
 

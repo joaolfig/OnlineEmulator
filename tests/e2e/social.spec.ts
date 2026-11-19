@@ -6,7 +6,7 @@ test('convidado escolhe boneco e manda reação pelo teclado; host e convidado v
   const host = await (await browser.newContext()).newPage();
   const guest = await (await browser.newContext()).newPage();
 
-  await host.goto('host.html');
+  await host.goto('host.html?teste');
   await host.getByRole('button', { name: 'Modo teste (sem ROM)' }).click();
   const roomCode = host.getByTestId('room-code');
   await expect(roomCode).toHaveText(/^[A-Z2-9]{6}$/, { timeout: 30_000 });

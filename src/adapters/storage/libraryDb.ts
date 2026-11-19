@@ -30,7 +30,6 @@ export interface StateMeta {
 export interface LibrarySchema extends DBSchema {
   meta: { key: string; value: RomMeta };
   data: { key: string; value: Blob };
-  covers: { key: string; value: Blob };
   stateMeta: { key: string; value: StateMeta; indexes: { byRom: string } };
   stateData: { key: string; value: Blob };
 }
@@ -38,23 +37,27 @@ export interface LibrarySchema extends DBSchema {
 export type LibraryDb = IDBPDatabase<LibrarySchema>;
 
 const DB_NAME = 'onlemu-library';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
+/** Store de capas personalizadas, que existiu na versão 2 e foi removido na 3. */
+const REMOVED_COVERS_STORE = 'covers';
 
 let dbPromise: Promise<LibraryDb> | null = null;
 
 export function openLibraryDb(): Promise<LibraryDb> {
   dbPromise ??= openDB<LibrarySchema>(DB_NAME, DB_VERSION, {
-    // Migrações incrementais: quem já tinha a versão 1 ganha só os stores novos.
+    // Migrações incrementais: cada versão só aplica o que mudou desde a anterior.
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         db.createObjectStore('meta', { keyPath: 'id' });
         db.createObjectStore('data');
       }
       if (oldVersion < 2) {
-        db.createObjectStore('covers');
         db.createObjectStore('stateMeta', { keyPath: 'id' }).createIndex('byRom', 'romId');
         db.createObjectStore('stateData');
       }
+      // v3: a troca de capa saiu do app; apaga as capas guardadas por quem usou a v2.
+      const raw = db as unknown as IDBDatabase;
+      if (raw.objectStoreNames.contains(REMOVED_COVERS_STORE)) raw.deleteObjectStore(REMOVED_COVERS_STORE);
     },
   });
   return dbPromise;

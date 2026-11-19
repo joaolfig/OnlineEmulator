@@ -27,8 +27,9 @@ interface Props {
 interface Entry {
   readonly rom: RomMeta;
   readonly states: StateMeta[];
-  readonly cover: Blob | undefined;
 }
+
+const TEST_MODE_ENABLED = new URLSearchParams(location.search).has('teste');
 
 const displayName = (rom: RomMeta) => splitGameName(rom.catalogName ?? rom.name);
 
@@ -44,7 +45,6 @@ export function Library({ library, stateStore, logger, onPlay }: Props) {
       roms.map(async (rom) => ({
         rom,
         states: await stateStore.list(rom.id),
-        cover: await library.getCover(rom.id),
       })),
     );
     setEntries(loaded);
@@ -127,18 +127,6 @@ export function Library({ library, stateStore, logger, onPlay }: Props) {
               entry={entry}
               busy={busy}
               onPlay={(stateId) => void play(entry.rom, stateId)}
-              onSetCover={(image) =>
-                void run(async () => {
-                  await library.setCover(entry.rom.id, image);
-                  await refresh();
-                }, 'Não foi possível trocar a capa')
-              }
-              onResetCover={() =>
-                void run(async () => {
-                  await library.removeCover(entry.rom.id);
-                  await refresh();
-                }, 'Não foi possível restaurar a capa')
-              }
               onRemove={() =>
                 confirm(t.library.confirmRemove(displayName(entry.rom).title)) &&
                 void run(async () => {
@@ -167,11 +155,8 @@ export function Library({ library, stateStore, logger, onPlay }: Props) {
         </div>
       )}
 
-      <hr class="divider" />
-      <div class="row">
-        <button onClick={() => onPlay({ kind: 'test' })}>{t.library.testMode}</button>
-        <span class="muted">{t.library.testModeHint}</span>
-      </div>
+      {/* Só para os testes automáticos (host.html?teste): não aparece para quem usa o site. */}
+      {TEST_MODE_ENABLED && <button onClick={() => onPlay({ kind: 'test' })}>{t.library.testMode}</button>}
       <p class="muted small">{t.library.credits}</p>
     </section>
   );
@@ -181,21 +166,18 @@ interface GameCardProps {
   readonly entry: Entry;
   readonly busy: boolean;
   readonly onPlay: (resumeStateId: string | null) => void;
-  readonly onSetCover: (image: File) => void;
-  readonly onResetCover: () => void;
   readonly onRemove: () => void;
 }
 
-function GameCard({ entry, busy, onPlay, onSetCover, onResetCover, onRemove }: GameCardProps) {
-  const { rom, states, cover } = entry;
+function GameCard({ entry, busy, onPlay, onRemove }: GameCardProps) {
+  const { rom, states } = entry;
   const { title, tags } = displayName(rom);
   const [selectedState, setSelectedState] = useState<string | null>(null);
-  const coverInput = useRef<HTMLInputElement>(null);
   const state = states.find((s) => s.id === selectedState) ?? states[0];
 
   return (
     <li class="game-card">
-      <Cover title={title} url={romBoxArtUrl(rom)} custom={cover} />
+      <Cover title={title} url={romBoxArtUrl(rom)} />
       <div class="game-info stack">
         <div>
           <div class="game-title" title={rom.fileName}>
@@ -240,29 +222,10 @@ function GameCard({ entry, busy, onPlay, onSetCover, onResetCover, onRemove }: G
         )}
 
         <div class="row small-buttons">
-          <button disabled={busy} onClick={() => coverInput.current?.click()}>
-            {t.library.changeCover}
-          </button>
-          {cover && (
-            <button disabled={busy} onClick={onResetCover}>
-              {t.library.defaultCover}
-            </button>
-          )}
           <button class="danger" disabled={busy} onClick={onRemove}>
             {t.library.remove}
           </button>
         </div>
-        <input
-          ref={coverInput}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const file = e.currentTarget.files?.[0];
-            e.currentTarget.value = '';
-            if (file) onSetCover(file);
-          }}
-        />
       </div>
     </li>
   );

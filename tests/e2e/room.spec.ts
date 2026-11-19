@@ -8,7 +8,7 @@ test('convidado entra na sala, recebe vídeo, controla o P2 e pode virar P1', as
   const host = await hostContext.newPage();
   const guest = await guestContext.newPage();
 
-  await host.goto('host.html');
+  await host.goto('host.html?teste');
   await host.getByRole('button', { name: 'Modo teste (sem ROM)' }).click();
   const roomCode = host.getByTestId('room-code');
   await expect(roomCode).toHaveText(/^[A-Z2-9]{6}$/, { timeout: 30_000 });
@@ -37,7 +37,7 @@ test('celular "só controle" ganha porta sem receber vídeo; aparelho "só assis
   browser,
 }) => {
   const host = await (await browser.newContext()).newPage();
-  await host.goto('host.html');
+  await host.goto('host.html?teste');
   await host.getByRole('button', { name: 'Modo teste (sem ROM)' }).click();
   const roomCode = host.getByTestId('room-code');
   await expect(roomCode).toHaveText(/^[A-Z2-9]{6}$/, { timeout: 30_000 });

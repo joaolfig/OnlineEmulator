@@ -9,7 +9,7 @@ export default tseslint.config(
   ...tseslint.configs.strict,
   {
     // As regras de hooks valem para Preact também (mesmos nomes: useEffect, useMemo…).
-    files: ['src/ui/**/*.tsx', 'src/lab/**/*.tsx'],
+    files: ['src/ui/**/*.tsx'],
     plugins: { 'react-hooks': reactHooks },
     rules: {
       'react-hooks/rules-of-hooks': 'error',
@@ -40,7 +40,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['**/adapters/**', '**/app/**', '**/ui/**', '**/lab/**', '**/effects/**'],
+              group: ['**/adapters/**', '**/app/**', '**/ui/**', '**/effects/**'],
               message: 'core/ não pode importar outras camadas.',
             },
             {
@@ -61,7 +61,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['**/app/**', '**/ui/**', '**/lab/**', '**/effects/**'],
+              group: ['**/app/**', '**/ui/**', '**/effects/**'],
               message: 'adapters/ não podem importar app/ nem ui/.',
             },
           ],
@@ -78,7 +78,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['**/adapters/**', '**/app/**', '**/ui/**', '**/lab/**'],
+              group: ['**/adapters/**', '**/app/**', '**/ui/**'],
               message: 'effects/ só pode depender do core e do three.js.',
             },
           ],
@@ -87,7 +87,6 @@ export default tseslint.config(
     },
   },
   {
-    // O laboratório de visual é experimental: o app de verdade nunca depende dele.
     // Os efeitos entram só por import dinâmico (o three.js só baixa quando alguém liga um efeito);
     // import estático de effects/ é permitido apenas para tipos e para a lista (catalog).
     files: [
@@ -103,7 +102,6 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            { group: ['**/lab/**'], message: 'O app principal não pode usar o laboratório de visual.' },
             {
               group: ['three', 'three/*'],
               message: 'three.js só dentro de effects/ (carregado sob demanda).',

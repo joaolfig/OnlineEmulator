@@ -12,7 +12,7 @@ test('convidado e host ligam efeitos visuais, inclusive os três juntos, sem err
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   }
 
-  await host.goto('host.html');
+  await host.goto('host.html?teste');
   await host.getByRole('button', { name: 'Modo teste (sem ROM)' }).click();
   const roomCode = host.getByTestId('room-code');
   await expect(roomCode).toHaveText(/^[A-Z2-9]{6}$/, { timeout: 30_000 });

@@ -5,26 +5,14 @@ interface Props {
   readonly title: string;
   /** Capa do catálogo do libretro, quando houver. */
   readonly url: string | null;
-  /** Capa escolhida pelo usuário (tem prioridade sobre a do catálogo). */
-  readonly custom: Blob | undefined;
 }
 
-/** Capa do jogo: personalizada > catálogo do libretro > iniciais. */
-export function Cover({ title, url, custom }: Props) {
-  const [customUrl, setCustomUrl] = useState<string | null>(null);
+/** Capa do jogo: a do catálogo do libretro ou, sem ela, as iniciais do título. */
+export function Cover({ title, url }: Props) {
   const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [url]);
 
-  useEffect(() => {
-    if (!custom) return setCustomUrl(null);
-    const objectUrl = URL.createObjectURL(custom);
-    setCustomUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [custom]);
-
-  useEffect(() => setFailed(false), [url, customUrl]);
-
-  const src = customUrl ?? url;
-  if (!src || failed) {
+  if (!url || failed) {
     return (
       <div class="cover cover-placeholder" aria-hidden="true">
         {initials(title)}
@@ -34,7 +22,7 @@ export function Cover({ title, url, custom }: Props) {
   return (
     <img
       class="cover"
-      src={src}
+      src={url}
       alt={`Capa de ${title}`}
       loading="lazy"
       referrerpolicy="no-referrer"

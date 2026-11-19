@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buttonMask } from '../../src/core/input/pad';
 import { averageColor, brightCentroid, damp, fitDistance, tiltTarget } from '../../src/effects/math';
 
-describe('laboratório de visual: matemática', () => {
+describe('efeitos visuais: matemática', () => {
   it('damp se aproxima do alvo sem passar dele, e mais rápido com lambda maior', () => {
     const slow = damp(0, 10, 2, 0.1);
     const fast = damp(0, 10, 20, 0.1);

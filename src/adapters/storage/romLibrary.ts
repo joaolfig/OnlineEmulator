@@ -15,7 +15,7 @@ export class UnsupportedRomError extends Error {
   }
 }
 
-/** Biblioteca de ROMs do host: arquivos, identificação pelo catálogo e capas personalizadas. */
+/** Biblioteca de ROMs do host: arquivos e identificação pelo catálogo. */
 export class RomLibrary {
   constructor(private readonly db: () => Promise<LibraryDb> = openLibraryDb) {}
 
@@ -67,33 +67,20 @@ export class RomLibrary {
     return new File([blob], meta.fileName);
   }
 
-  /** Remove o jogo e tudo que é dele (capa e savestates). O save do cartucho fica com o EmulatorJS. */
+  /** Remove o jogo e os savestates dele. O save do cartucho fica com o EmulatorJS. */
   async remove(id: string): Promise<void> {
     const db = await this.db();
     const stateIds = await db.getAllKeysFromIndex('stateMeta', 'byRom', id);
-    const tx = db.transaction(['meta', 'data', 'covers', 'stateMeta', 'stateData'], 'readwrite');
+    const tx = db.transaction(['meta', 'data', 'stateMeta', 'stateData'], 'readwrite');
     await Promise.all([
       tx.objectStore('meta').delete(id),
       tx.objectStore('data').delete(id),
-      tx.objectStore('covers').delete(id),
       ...stateIds.flatMap((s) => [
         tx.objectStore('stateMeta').delete(s),
         tx.objectStore('stateData').delete(s),
       ]),
       tx.done,
     ]);
-  }
-
-  async getCover(id: string): Promise<Blob | undefined> {
-    return (await this.db()).get('covers', id);
-  }
-
-  async setCover(id: string, image: Blob): Promise<void> {
-    await (await this.db()).put('covers', image, id);
-  }
-
-  async removeCover(id: string): Promise<void> {
-    await (await this.db()).delete('covers', id);
   }
 }
 

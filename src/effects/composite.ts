@@ -17,46 +17,23 @@ import {
   Vector2,
   Vector3,
 } from 'three';
-import { AXIS_LIMIT } from '../core/input/pad';
 import type { EffectId } from './catalog';
 import { createScreenStage, SAMPLE_VIDEO_GLSL, SCREEN_HEIGHT } from './common';
 import { averageColor, brightCentroid, damp, degToRad, tiltTarget } from './math';
-import type { ExperimentContext, ExperimentInstance, ParamDef } from './types';
+import type { EffectContext, EffectScene } from './types';
 
-/** Configuração fixa da TV de tubo (escolhida nos testes do laboratório). */
+/** Configuração fixa da TV de tubo. */
 const CRT = { softness: 0.8, scanlines: 0.5, curvature: 0.12, ambilight: 0.45 } as const;
 /** Inclinação: ângulo máximo e rapidez da resposta. */
 const TILT = { maxAngle: 8, smoothing: 6 } as const;
 
-/** De onde vem a luz do relevo. Nenhuma opção depende do mouse: os jogos não usam mouse. */
-export const LIGHT = { bright: 0, stick: 1, orbit: 2, fixed: 3 } as const;
+/** Relevo: força das bordas, altura da luz, brilho especular e luz ambiente. */
+const RELIEF = { strength: 4, height: 0.35, specular: 0.3, ambient: 0.55 } as const;
+/** A luz do relevo sai das partes mais claras do jogo, procuradas numa miniatura do quadro. */
 const LIGHT_SAMPLE_W = 32;
 const LIGHT_SAMPLE_H = 24;
 /** Sem nada brilhando na tela, a luz descansa no alto, um pouco à esquerda. */
 const LIGHT_REST = { x: 0.3, y: 0.85 };
-
-/** Ajustes do relevo expostos no laboratório; no jogo valem os padrões. */
-export const RELIEF_PARAMS: readonly ParamDef[] = [
-  {
-    key: 'lightMode',
-    label: 'De onde vem a luz',
-    min: 0,
-    max: 3,
-    step: 1,
-    value: LIGHT.bright,
-    options: [
-      { value: LIGHT.bright, label: 'Do brilho do jogo (fogo, lasers, explosões)' },
-      { value: LIGHT.stick, label: 'Segue o controle (analógico)' },
-      { value: LIGHT.orbit, label: 'Gira sozinha' },
-      { value: LIGHT.fixed, label: 'Fixa (canto de cima)' },
-    ],
-  },
-  { key: 'strength', label: 'Força do relevo', min: 0, max: 12, step: 0.5, value: 4 },
-  { key: 'height', label: 'Altura da luz', min: 0.05, max: 1.5, step: 0.05, value: 0.35 },
-  { key: 'specular', label: 'Brilho especular', min: 0, max: 2, step: 0.05, value: 0.3 },
-  { key: 'ambient', label: 'Luz ambiente', min: 0, max: 1, step: 0.05, value: 0.55 },
-];
-const reliefDefault = (key: string): number => RELIEF_PARAMS.find((p) => p.key === key)?.value ?? 0;
 
 const FRAGMENT = /* glsl */ `
   uniform sampler2D map;
@@ -140,7 +117,7 @@ const VERTEX = /* glsl */ `
 type Flags = Readonly<Record<EffectId, boolean>>;
 
 /** Monta a cena com os efeitos ligados em `flags`. */
-export function createComposite(ctx: ExperimentContext, flags: Flags): ExperimentInstance {
+export function createComposite(ctx: EffectContext, flags: Flags): EffectScene {
   const material = new ShaderMaterial({
     defines: { ...(flags.crt ? { CRT: '' } : {}), ...(flags.relief ? { RELIEF: '' } : {}) },
     uniforms: {
@@ -149,10 +126,10 @@ export function createComposite(ctx: ExperimentContext, flags: Flags): Experimen
       aspect: { value: ctx.aspect },
       softness: { value: CRT.softness },
       scanlines: { value: CRT.scanlines },
-      strength: { value: reliefDefault('strength') },
-      light: { value: new Vector3(LIGHT_REST.x, LIGHT_REST.y, reliefDefault('height')) },
-      ambient: { value: reliefDefault('ambient') },
-      specular: { value: reliefDefault('specular') },
+      strength: { value: RELIEF.strength },
+      light: { value: new Vector3(LIGHT_REST.x, LIGHT_REST.y, RELIEF.height) },
+      ambient: { value: RELIEF.ambient },
+      specular: { value: RELIEF.specular },
     },
     vertexShader: VERTEX,
     fragmentShader: FRAGMENT,
@@ -223,8 +200,8 @@ export function createComposite(ctx: ExperimentContext, flags: Flags): Experimen
     });
   }
 
-  // ---------- Relevo: posição da luz ----------
-  let moveLight: ((dt: number, padX: number, padY: number, time: number) => void) | null = null;
+  // ---------- Relevo: a luz vai até as partes mais claras do jogo (fogo, lasers, explosões) ----------
+  let moveLight: ((dt: number) => void) | null = null;
   if (flags.relief) {
     const light = uniform<Vector3>('light').value;
     const sample = document.createElement('canvas');
@@ -233,28 +210,12 @@ export function createComposite(ctx: ExperimentContext, flags: Flags): Experimen
     const sampleCtx = sample.getContext('2d', { willReadFrequently: true });
     let target = { ...LIGHT_REST };
     let frame = 0;
-    moveLight = (dt, padX, padY, time) => {
-      uniform<number>('strength').value = ctx.params.strength ?? reliefDefault('strength');
-      uniform<number>('specular').value = ctx.params.specular ?? reliefDefault('specular');
-      uniform<number>('ambient').value = ctx.params.ambient ?? reliefDefault('ambient');
-      light.z = ctx.params.height ?? reliefDefault('height');
-      switch (ctx.params.lightMode ?? LIGHT.bright) {
-        case LIGHT.bright:
-          // A cada 4 quadros, procura as partes mais claras numa miniatura do jogo.
-          if (sampleCtx && frame++ % 4 === 0 && ctx.video.readyState >= 2) {
-            sampleCtx.drawImage(ctx.video, 0, 0, LIGHT_SAMPLE_W, LIGHT_SAMPLE_H);
-            const data = sampleCtx.getImageData(0, 0, LIGHT_SAMPLE_W, LIGHT_SAMPLE_H).data;
-            target = brightCentroid(data, LIGHT_SAMPLE_W, LIGHT_SAMPLE_H) ?? LIGHT_REST;
-          }
-          break;
-        case LIGHT.stick:
-          target = { x: 0.5 + (padX / AXIS_LIMIT) * 0.45, y: 0.5 - (padY / AXIS_LIMIT) * 0.45 };
-          break;
-        case LIGHT.orbit:
-          target = { x: 0.5 + Math.cos(time * 0.5) * 0.45, y: 0.5 + Math.sin(time * 0.5) * 0.45 };
-          break;
-        default:
-          target = { ...LIGHT_REST };
+    moveLight = (dt) => {
+      // A cada 4 quadros, procura as partes mais claras numa miniatura do jogo.
+      if (sampleCtx && frame++ % 4 === 0 && ctx.video.readyState >= 2) {
+        sampleCtx.drawImage(ctx.video, 0, 0, LIGHT_SAMPLE_W, LIGHT_SAMPLE_H);
+        const data = sampleCtx.getImageData(0, 0, LIGHT_SAMPLE_W, LIGHT_SAMPLE_H).data;
+        target = brightCentroid(data, LIGHT_SAMPLE_W, LIGHT_SAMPLE_H) ?? LIGHT_REST;
       }
       // A luz "desliza" até o alvo em vez de pular.
       light.x = damp(light.x, target.x, 5, dt);
@@ -266,21 +227,18 @@ export function createComposite(ctx: ExperimentContext, flags: Flags): Experimen
   const margin = (flags.crt ? 1.3 : 1) * (flags.tilt ? (flags.crt ? 1.18 : 1.1) : 1);
   let yaw = 0;
   let pitch = 0;
-  let time = 0;
 
   return {
     update(dt, input) {
-      time += dt;
       if (ctx.video.videoWidth > 0) {
         uniform<Vector2>('res').value.set(ctx.video.videoWidth, ctx.video.videoHeight);
       }
       ambilight?.(dt);
-      moveLight?.(dt, input.pad.x, input.pad.y, time);
+      moveLight?.(dt);
       if (flags.tilt) {
-        const target = tiltTarget(input.pad, ctx.params.maxAngle ?? TILT.maxAngle);
-        const lambda = ctx.params.smoothing ?? TILT.smoothing;
-        yaw = damp(yaw, target.yaw, lambda, dt);
-        pitch = damp(pitch, target.pitch, lambda, dt);
+        const target = tiltTarget(input.pad, TILT.maxAngle);
+        yaw = damp(yaw, target.yaw, TILT.smoothing, dt);
+        pitch = damp(pitch, target.pitch, TILT.smoothing, dt);
         rig.rotation.set(degToRad(pitch), degToRad(yaw), 0);
       }
     },

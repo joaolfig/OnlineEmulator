@@ -1,6 +1,6 @@
 import { Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Scene, type Material } from 'three';
 import { fitDistance } from './math';
-import type { ExperimentContext } from './types';
+import type { EffectContext } from './types';
 
 export const SCREEN_HEIGHT = 3;
 
@@ -14,7 +14,7 @@ export const SAMPLE_VIDEO_GLSL = /* glsl */ `
 `;
 
 /** Cena básica: um plano com o jogo, de frente para a câmera. */
-export function createScreenStage(ctx: ExperimentContext, fov = 40, material?: Material) {
+export function createScreenStage(ctx: EffectContext, fov = 40, material?: Material) {
   const scene = new Scene();
   const camera = new PerspectiveCamera(fov, 1, 0.1, 100);
   const width = SCREEN_HEIGHT * ctx.aspect;
