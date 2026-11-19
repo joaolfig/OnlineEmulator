@@ -152,22 +152,38 @@ export function LabApp() {
           <h2>{experiment.name}</h2>
           <p class="small">{experiment.summary}</p>
           <p class="warn small">⚠ {experiment.caveat}</p>
-          {experiment.params.map((p) => (
-            <label key={p.key} class="lab-slider">
-              <span class="row spread small">
-                <span>{p.label}</span>
-                <span class="mono">{params[p.key]}</span>
-              </span>
-              <input
-                type="range"
-                min={p.min}
-                max={p.max}
-                step={p.step}
-                value={params[p.key]}
-                onInput={(e) => setParam(p.key, Number(e.currentTarget.value))}
-              />
-            </label>
-          ))}
+          {experiment.params.map((p) =>
+            p.options ? (
+              <label key={p.key} class="lab-slider">
+                <span class="small">{p.label}</span>
+                <select
+                  value={String(params[p.key])}
+                  onChange={(e) => setParam(p.key, Number(e.currentTarget.value))}
+                >
+                  {p.options.map((o) => (
+                    <option key={o.value} value={String(o.value)}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label key={p.key} class="lab-slider">
+                <span class="row spread small">
+                  <span>{p.label}</span>
+                  <span class="mono">{params[p.key]}</span>
+                </span>
+                <input
+                  type="range"
+                  min={p.min}
+                  max={p.max}
+                  step={p.step}
+                  value={params[p.key]}
+                  onInput={(e) => setParam(p.key, Number(e.currentTarget.value))}
+                />
+              </label>
+            ),
+          )}
           <label class="check small">
             <input
               type="checkbox"
@@ -181,7 +197,8 @@ export function LabApp() {
         <section class="stack tight">
           <h2>Original (sem efeito)</h2>
           <div ref={originalEl} class="lab-original" />
-          <div ref={emulatorEl} class="lab-original" hidden={!romSource} />
+          {/* O EmulatorJS mede este espaço ao iniciar: ele precisa existir, visível e em 4:3, antes do jogo. */}
+          <div ref={emulatorEl} class={romSource ? 'lab-emulator' : 'lab-emulator lab-emulator-idle'} />
         </section>
       </aside>
 

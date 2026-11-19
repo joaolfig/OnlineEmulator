@@ -64,43 +64,6 @@ export const tilt: Experiment = {
   },
 };
 
-export const tabletop: Experiment = {
-  id: 'tabletop',
-  name: 'Modo mesa (tabuleiro 2.5D)',
-  idea: '1',
-  summary:
-    'O jogo deitado para trás com perspectiva, como um tabuleiro na mesa. Combina com jogos vistos de cima (Mario Party, Bomberman, Zelda, Pokémon).',
-  caveat: 'A parte de cima da tela fica menor e mais difícil de ler (placar, HUD).',
-  params: [
-    { key: 'angle', label: 'Inclinação (°)', min: 0, max: 60, step: 1, value: 32 },
-    { key: 'fov', label: 'Perspectiva (FOV)', min: 15, max: 75, step: 1, value: 45 },
-  ],
-  create(ctx) {
-    const stage = createScreenStage(ctx);
-    let lastFov = 0;
-    let size = { w: 1, h: 1 };
-    return {
-      update() {
-        const fov = ctx.params.fov ?? 45;
-        if (fov !== lastFov) {
-          stage.camera.fov = fov;
-          lastFov = fov;
-          stage.resize(size.w, size.h, 0.92);
-        }
-        stage.screen.rotation.x = -degToRad(ctx.params.angle ?? 32);
-        // Desce um pouco o tabuleiro para centralizar depois de deitar.
-        stage.screen.position.y = -Math.sin(degToRad(ctx.params.angle ?? 32)) * SCREEN_HEIGHT * 0.12;
-      },
-      render: () => ctx.renderer.render(stage.scene, stage.camera),
-      resize: (w, h) => {
-        size = { w, h };
-        stage.resize(w, h, 0.92);
-      },
-      dispose: () => stage.dispose(),
-    };
-  },
-};
-
 /** Tela de TV de tubo: curvatura, linhas de varredura, máscara RGB e cantos escuros. */
 function createCrtMaterial(map: Texture) {
   return new ShaderMaterial({

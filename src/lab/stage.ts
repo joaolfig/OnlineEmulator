@@ -2,6 +2,8 @@ import { LinearFilter, NearestFilter, SRGBColorSpace, VideoTexture, WebGLRendere
 import { EMPTY_PAD, type PadState } from '../core/input/pad';
 import type { Experiment, ExperimentInstance, LabInput } from './experiments/types';
 
+const DEFAULT_ASPECT = 4 / 3;
+
 /**
  * Palco 3D do laboratório: recebe o vídeo do jogo (o mesmo MediaStream que os convidados recebem),
  * transforma em textura e roda a experiência escolhida a cada quadro.
@@ -11,9 +13,10 @@ export class LabStage {
   private readonly video = document.createElement('video');
   private readonly texture: VideoTexture;
   private instance: ExperimentInstance | null = null;
+  private experiment: Experiment | null = null;
+  private aspect = DEFAULT_ASPECT;
   private params: Record<string, number> = {};
   private pad: PadState = EMPTY_PAD;
-  private pointer = { x: 0, y: 0 };
   private rafId = 0;
   private last = 0;
   private frames = 0;
@@ -35,14 +38,16 @@ export class LabStage {
     this.texture.colorSpace = SRGBColorSpace;
     this.setPixelated(true);
 
-    this.renderer.domElement.addEventListener(
-      'pointermove',
-      (e) => {
-        const rect = this.renderer.domElement.getBoundingClientRect();
-        this.pointer = {
-          x: ((e.clientX - rect.left) / rect.width) * 2 - 1,
-          y: -(((e.clientY - rect.top) / rect.height) * 2 - 1),
-        };
+    // Quando o vídeo muda de tamanho (ex.: troca da cena demo para uma ROM), refaz a cena no novo formato.
+    this.video.addEventListener(
+      'resize',
+      () => {
+        const { videoWidth: w, videoHeight: h } = this.video;
+        if (w === 0 || h === 0) return;
+        const aspect = w / h;
+        if (Math.abs(aspect - this.aspect) < 0.01) return;
+        this.aspect = aspect;
+        this.rebuild();
       },
       { signal: this.abort.signal },
     );
@@ -64,13 +69,20 @@ export class LabStage {
   }
 
   setExperiment(experiment: Experiment, params: Record<string, number>): void {
-    this.instance?.dispose();
+    this.experiment = experiment;
     this.params = params;
-    this.instance = experiment.create({
+    this.rebuild();
+  }
+
+  /** Recria a cena com o formato atual do vídeo (o plano 3D segue a proporção real do jogo). */
+  private rebuild(): void {
+    if (!this.experiment) return;
+    this.instance?.dispose();
+    this.instance = this.experiment.create({
       renderer: this.renderer,
       texture: this.texture,
       video: this.video,
-      aspect: 4 / 3,
+      aspect: this.aspect,
       params: this.params,
     });
     this.resize();
@@ -86,7 +98,7 @@ export class LabStage {
     const loop = (now: number) => {
       const dt = Math.min(0.1, (now - this.last) / 1000);
       this.last = now;
-      const input: LabInput = { pad: this.pad, pointer: this.pointer };
+      const input: LabInput = { pad: this.pad };
       this.instance?.update(dt, input);
       this.instance?.render();
       this.countFrame(now);

@@ -50,6 +50,19 @@
 .lab-original:empty {
   display: none;
 }
+.lab-emulator {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border-radius: 6px;
+  overflow: hidden;
+}
+/* Antes de escolher uma ROM: fora da tela, mas com tamanho real (não usar display: none). */
+.lab-emulator-idle {
+  position: absolute;
+  left: -10000px;
+  width: 320px;
+}
 .lab-main {
   position: relative;
   background: #000;

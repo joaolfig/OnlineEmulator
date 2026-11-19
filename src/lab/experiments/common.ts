@@ -8,12 +8,7 @@ import {
   Vector2,
   Vector3,
   type Material,
-  type WebGLRenderer,
 } from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { fitDistance } from '../math';
 import type { ExperimentContext } from './types';
 
@@ -57,25 +52,6 @@ export function createScreenStage(ctx: ExperimentContext, fov = 40, material?: M
     dispose() {
       geometry.dispose();
       (screen.material as Material).dispose();
-    },
-  };
-}
-
-/** Pós-processamento com bloom (brilho que "vaza" das partes claras). */
-export function createBloom(renderer: WebGLRenderer, scene: Scene, camera: PerspectiveCamera) {
-  const composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new Vector2(256, 256), 1.2, 0.4, 0.6);
-  composer.addPass(bloom);
-  composer.addPass(new OutputPass());
-  return {
-    bloom,
-    composer,
-    resize(w: number, h: number) {
-      composer.setSize(w, h);
-    },
-    dispose() {
-      composer.dispose();
     },
   };
 }

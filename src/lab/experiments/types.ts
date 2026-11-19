@@ -1,7 +1,7 @@
 import type { VideoTexture, WebGLRenderer } from 'three';
 import type { PadState } from '../../core/input/pad';
 
-/** Controle deslizante de uma experiência. */
+/** Controle de uma experiência: deslizante, ou lista de opções quando `options` existe. */
 export interface ParamDef {
   readonly key: string;
   readonly label: string;
@@ -9,12 +9,11 @@ export interface ParamDef {
   readonly max: number;
   readonly step: number;
   readonly value: number;
+  readonly options?: readonly { readonly value: number; readonly label: string }[];
 }
 
 export interface LabInput {
   readonly pad: PadState;
-  /** Posição do mouse/dedo sobre a tela 3D, de -1 a 1 (centro = 0). */
-  readonly pointer: { readonly x: number; readonly y: number };
 }
 
 export interface ExperimentContext {

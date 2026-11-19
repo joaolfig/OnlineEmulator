@@ -43,6 +43,34 @@ export function averageColor(rgba: ArrayLike<number>): Rgb {
   return { r: r / count / 255, g: g / count / 255, b: b / count / 255 };
 }
 
+/**
+ * Centro das partes mais claras da imagem (fogo, lasers, explosões), em coordenadas 0..1
+ * com y para cima. O brilho é elevado à 4ª potência para que só o que brilha muito conte.
+ * null se a imagem for quase toda escura.
+ */
+export function brightCentroid(
+  rgba: ArrayLike<number>,
+  width: number,
+  height: number,
+): { x: number; y: number } | null {
+  let sumX = 0;
+  let sumY = 0;
+  let total = 0;
+  for (let py = 0; py < height; py++) {
+    for (let px = 0; px < width; px++) {
+      const i = (py * width + px) * 4;
+      const lum = (0.2126 * (rgba[i] ?? 0) + 0.7152 * (rgba[i + 1] ?? 0) + 0.0722 * (rgba[i + 2] ?? 0)) / 255;
+      const weight = lum ** 4;
+      sumX += (px + 0.5) * weight;
+      sumY += (py + 0.5) * weight;
+      total += weight;
+    }
+  }
+  const MIN_TOTAL = 0.05;
+  if (total < MIN_TOTAL) return null;
+  return { x: sumX / total / width, y: 1 - sumY / total / height };
+}
+
 /** Distância da câmera para um plano de altura `height` caber inteiro na vertical com o FOV dado. */
 export function fitDistance(height: number, fovDegrees: number, margin = 1.08): number {
   return (height / 2 / Math.tan(degToRad(fovDegrees) / 2)) * margin;

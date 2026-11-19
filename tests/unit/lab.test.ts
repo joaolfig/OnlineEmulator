@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buttonMask } from '../../src/core/input/pad';
-import { averageColor, damp, fitDistance, tiltTarget } from '../../src/lab/math';
+import { averageColor, brightCentroid, damp, fitDistance, tiltTarget } from '../../src/lab/math';
 
 describe('laboratório de visual: matemática', () => {
   it('damp se aproxima do alvo sem passar dele, e mais rápido com lambda maior', () => {
@@ -32,5 +32,15 @@ describe('laboratório de visual: matemática', () => {
 
   it('distância da câmera aumenta com FOV menor', () => {
     expect(fitDistance(3, 30)).toBeGreaterThan(fitDistance(3, 60));
+  });
+
+  it('acha o centro das partes mais claras (de onde sai a luz do relevo)', () => {
+    // Imagem 4×2 escura com um pixel branco no canto superior direito.
+    const pixels = new Array(4 * 2 * 4).fill(0);
+    pixels.splice(3 * 4, 3, 255, 255, 255);
+    const c = brightCentroid(pixels, 4, 2);
+    expect(c?.x).toBeCloseTo(3.5 / 4);
+    expect(c?.y).toBeCloseTo(1 - 0.5 / 2);
+    expect(brightCentroid(new Array(4 * 2 * 4).fill(0), 4, 2)).toBeNull();
   });
 });
