@@ -130,6 +130,16 @@ function createCrtMaterial(map: Texture) {
   });
 }
 
+/** Configuração fixa da TV de tubo. */
+const CRT = {
+  /** Mistura entre pixels vizinhos (0 = nítido, 1 = bem suave). */
+  softness: 0.8,
+  scanlines: 0.5,
+  curvature: 0.12,
+  /** Força da luz de fundo (Ambilight). */
+  ambilight: 0.7,
+} as const;
+
 export const crt: Experiment = {
   id: 'crt',
   name: 'TV de tubo 3D + Ambilight',
@@ -138,31 +148,27 @@ export const crt: Experiment = {
     'O jogo numa TV antiga curva, num quarto escuro. Os pixels se misturam como no feixe da TV de tubo (sem quadradinhos duros) e a luz atrás da TV muda de cor conforme a imagem (Ambilight).',
   caveat:
     'Fica mais fiel em jogos 2D de 240 linhas (SNES, Mega Drive, NES). Linhas de varredura fortes escurecem a imagem.',
-  params: [
-    {
-      key: 'softness',
-      label: 'Suavidade de TV (0 = pixels nítidos)',
-      min: 0,
-      max: 1,
-      step: 0.05,
-      value: 0.8,
-    },
-    { key: 'scanlines', label: 'Linhas de varredura', min: 0, max: 1, step: 0.05, value: 0.5 },
-    { key: 'curvature', label: 'Curvatura da tela', min: 0, max: 0.4, step: 0.01, value: 0.12 },
-    { key: 'ambilight', label: 'Luz ambiente', min: 0, max: 3, step: 0.1, value: 1.4 },
-    { key: 'turn', label: 'Ângulo da TV (°)', min: -25, max: 25, step: 1, value: 0 },
-  ],
+  // Sem controles: a TV tem uma configuração fixa, escolhida nos testes.
+  params: [],
   create(ctx) {
     const material = createCrtMaterial(ctx.texture);
+    (material.uniforms.softness as { value: number }).value = CRT.softness;
+    (material.uniforms.scanlines as { value: number }).value = CRT.scanlines;
     const stage = createScreenStage(ctx, 40, material);
     const width = SCREEN_HEIGHT * ctx.aspect;
 
     // Tela curva: plano subdividido com o centro empurrado para a frente.
     const curved = new PlaneGeometry(width, SCREEN_HEIGHT, 48, 36);
-    const flatPositions = Float32Array.from(curved.attributes.position?.array ?? []);
+    const pos = curved.attributes.position;
+    if (pos) {
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i) / (width / 2);
+        const y = pos.getY(i) / (SCREEN_HEIGHT / 2);
+        pos.setZ(i, CRT.curvature * (1 - (x * x + y * y) / 2));
+      }
+    }
     stage.screen.geometry.dispose();
     stage.screen.geometry = curved;
-    let lastCurvature = -1;
 
     // Gabinete da TV e a luz atrás dela.
     const cabinet = new Mesh(
@@ -203,21 +209,6 @@ export const crt: Experiment = {
 
     return {
       update(dt) {
-        const curvature = ctx.params.curvature ?? 0.15;
-        if (curvature !== lastCurvature) {
-          lastCurvature = curvature;
-          const pos = curved.attributes.position;
-          if (pos) {
-            for (let i = 0; i < pos.count; i++) {
-              const x = (flatPositions[i * 3] ?? 0) / (width / 2);
-              const y = (flatPositions[i * 3 + 1] ?? 0) / (SCREEN_HEIGHT / 2);
-              pos.setZ(i, curvature * (1 - (x * x + y * y) / 2));
-            }
-            pos.needsUpdate = true;
-          }
-        }
-        (material.uniforms.scanlines as { value: number }).value = ctx.params.scanlines ?? 0.5;
-        (material.uniforms.softness as { value: number }).value = ctx.params.softness ?? 0.8;
         // Resolução real do vídeo: cada linha da imagem vira uma linha de varredura.
         if (ctx.video.videoWidth > 0) {
           (material.uniforms.res as { value: Vector2 }).value.set(
@@ -229,17 +220,12 @@ export const crt: Experiment = {
         if (sampleCtx && frame++ % 3 === 0 && ctx.video.readyState >= 2) {
           sampleCtx.drawImage(ctx.video, 0, 0, sample.width, sample.height);
           const avg = averageColor(sampleCtx.getImageData(0, 0, sample.width, sample.height).data);
-          const boost = ctx.params.ambilight ?? 1.4;
+          const boost = CRT.ambilight;
           target.setRGB(Math.min(1, avg.r * boost), Math.min(1, avg.g * boost), Math.min(1, avg.b * boost));
         }
         ambient.lerp(target, Math.min(1, dt * 6));
         glowMaterial.color.copy(ambient);
         stage.scene.background = ambient.clone().multiplyScalar(0.12);
-
-        const turn = degToRad(ctx.params.turn ?? 0);
-        for (const object of [stage.screen, cabinet, glow]) object.rotation.y = turn;
-        cabinet.position.x = Math.sin(turn) * -0.85;
-        glow.position.x = Math.sin(turn) * -1.8;
       },
       render: () => ctx.renderer.render(stage.scene, stage.camera),
       resize: (w, h) => stage.resize(w, h, 1.3),
