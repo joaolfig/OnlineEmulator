@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buttonMask } from '../../src/core/input/pad';
-import { averageColor, brightCentroid, damp, fitDistance, tiltTarget } from '../../src/lab/math';
+import { averageColor, brightCentroid, damp, fitDistance, tiltTarget } from '../../src/effects/math';
 
 describe('laboratório de visual: matemática', () => {
   it('damp se aproxima do alvo sem passar dele, e mais rápido com lambda maior', () => {

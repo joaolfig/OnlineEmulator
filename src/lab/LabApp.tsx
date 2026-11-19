@@ -9,9 +9,9 @@ import {
 import { RomLibrary, type RomMeta } from '../adapters/storage/romLibrary';
 import { startInputLoop } from '../app/inputLoop';
 import { splitGameName } from '../core/catalog/thumbnails';
-import { EXPERIMENTS, findExperiment } from './experiments';
-import type { Experiment } from './experiments/types';
-import { LabStage } from './stage';
+import { EXPERIMENTS, findExperiment } from '../effects/registry';
+import type { Experiment } from '../effects/types';
+import { EffectStage } from '../effects/stage';
 import { createDemoSource, createRomSource, type LabSource } from './sources';
 
 const IDEA_LABEL = {
@@ -41,7 +41,7 @@ export function LabApp() {
   const originalEl = useRef<HTMLDivElement>(null);
   const emulatorEl = useRef<HTMLDivElement>(null);
   const romInput = useRef<HTMLInputElement>(null);
-  const stage = useRef<LabStage | null>(null);
+  const stage = useRef<EffectStage | null>(null);
   const source = useRef<LabSource | null>(null);
   // Objeto mutável compartilhado com a experiência: mexer no controle deslizante não recria a cena.
   const liveParams = useRef<Record<string, number>>(params);
@@ -49,7 +49,7 @@ export function LabApp() {
   // Palco 3D + controles (teclado/gamepad) + fonte demo.
   useEffect(() => {
     if (!stageEl.current) return;
-    const s = new LabStage(stageEl.current, setFps);
+    const s = new EffectStage(stageEl.current, setFps);
     stage.current = s;
     s.start();
     const demo = createDemoSource();

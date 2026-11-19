@@ -2,10 +2,22 @@
 
 import type { GuestErrorCode } from '../app/guest/guestSession';
 import type { DeviceMode, Port } from '../core/room/room';
+import type { EffectId } from '../effects/catalog';
 
 export const t = {
   appName: 'OnlineEmulator',
   tagline: 'Jogue N64 online com amigos, direto no navegador.',
+
+  effects: {
+    label: 'Efeitos visuais',
+    hint: 'Dá para ligar vários. Só neste aparelho: não muda o jogo nem o que os outros veem.',
+    names: {
+      tilt: 'Inclinação dinâmica',
+      crt: 'TV de tubo',
+      relief: 'Relevo com luz',
+    } satisfies Record<EffectId, string>,
+    failed: 'Não foi possível ligar os efeitos visuais neste aparelho',
+  },
 
   landing: {
     createRoom: 'Criar sala',

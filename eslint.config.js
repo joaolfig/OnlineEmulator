@@ -40,7 +40,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['**/adapters/**', '**/app/**', '**/ui/**', '**/lab/**'],
+              group: ['**/adapters/**', '**/app/**', '**/ui/**', '**/lab/**', '**/effects/**'],
               message: 'core/ não pode importar outras camadas.',
             },
             {
@@ -61,7 +61,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['**/app/**', '**/ui/**', '**/lab/**'],
+              group: ['**/app/**', '**/ui/**', '**/lab/**', '**/effects/**'],
               message: 'adapters/ não podem importar app/ nem ui/.',
             },
           ],
@@ -70,7 +70,26 @@ export default tseslint.config(
     },
   },
   {
-    // O laboratório de visual é experimental: o app de verdade nunca depende dele (nem do three.js).
+    // effects/ (efeitos visuais com three.js) só conhece o core: nada de rede, app ou UI.
+    files: ['src/effects/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/adapters/**', '**/app/**', '**/ui/**', '**/lab/**'],
+              message: 'effects/ só pode depender do core e do three.js.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // O laboratório de visual é experimental: o app de verdade nunca depende dele.
+    // Os efeitos entram só por import dinâmico (o three.js só baixa quando alguém liga um efeito);
+    // import estático de effects/ é permitido apenas para tipos e para a lista (catalog).
     files: [
       'src/app/**',
       'src/ui/**',
@@ -85,7 +104,15 @@ export default tseslint.config(
         {
           patterns: [
             { group: ['**/lab/**'], message: 'O app principal não pode usar o laboratório de visual.' },
-            { group: ['three', 'three/*'], message: 'three.js é só do laboratório.' },
+            {
+              group: ['three', 'three/*'],
+              message: 'three.js só dentro de effects/ (carregado sob demanda).',
+            },
+            {
+              group: ['**/effects/*', '!**/effects/catalog'],
+              allowTypeImports: true,
+              message: 'Use import() dinâmico para os efeitos (só o catalog pode ser importado direto).',
+            },
           ],
         },
       ],

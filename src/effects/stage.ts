@@ -1,14 +1,14 @@
 import { LinearFilter, NearestFilter, SRGBColorSpace, VideoTexture, WebGLRenderer } from 'three';
 import { EMPTY_PAD, type PadState } from '../core/input/pad';
-import type { Experiment, ExperimentInstance, LabInput } from './experiments/types';
+import type { Experiment, ExperimentInstance, EffectInput } from './types';
 
 const DEFAULT_ASPECT = 4 / 3;
 
 /**
- * Palco 3D do laboratório: recebe o vídeo do jogo (o mesmo MediaStream que os convidados recebem),
- * transforma em textura e roda a experiência escolhida a cada quadro.
+ * Palco 3D dos efeitos: recebe o vídeo do jogo (o mesmo MediaStream que os convidados recebem),
+ * transforma em textura e roda o efeito escolhido a cada quadro. Usado no jogo e no laboratório.
  */
-export class LabStage {
+export class EffectStage {
   readonly renderer: WebGLRenderer;
   private readonly video = document.createElement('video');
   private readonly texture: VideoTexture;
@@ -16,7 +16,8 @@ export class LabStage {
   private experiment: Experiment | null = null;
   private aspect = DEFAULT_ASPECT;
   private params: Record<string, number> = {};
-  private pad: PadState = EMPTY_PAD;
+  /** De onde vem o controle (para efeitos que reagem a ele, como a inclinação). */
+  private readPad: () => PadState = () => EMPTY_PAD;
   private rafId = 0;
   private last = 0;
   private frames = 0;
@@ -26,7 +27,7 @@ export class LabStage {
 
   constructor(
     private readonly container: HTMLElement,
-    private readonly onFps: (fps: number) => void,
+    private readonly onFps: (fps: number) => void = () => {},
   ) {
     this.renderer = new WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -89,7 +90,11 @@ export class LabStage {
   }
 
   setPad(pad: PadState): void {
-    this.pad = pad;
+    this.readPad = () => pad;
+  }
+
+  setPadSource(read: () => PadState): void {
+    this.readPad = read;
   }
 
   start(): void {
@@ -98,7 +103,7 @@ export class LabStage {
     const loop = (now: number) => {
       const dt = Math.min(0.1, (now - this.last) / 1000);
       this.last = now;
-      const input: LabInput = { pad: this.pad };
+      const input: EffectInput = { pad: this.readPad() };
       this.instance?.update(dt, input);
       this.instance?.render();
       this.countFrame(now);
@@ -110,6 +115,8 @@ export class LabStage {
   dispose(): void {
     cancelAnimationFrame(this.rafId);
     this.abort.abort();
+    this.video.pause();
+    this.video.srcObject = null;
     this.resizeObserver.disconnect();
     this.instance?.dispose();
     this.texture.dispose();

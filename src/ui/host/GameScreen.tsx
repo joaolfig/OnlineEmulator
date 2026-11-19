@@ -10,7 +10,10 @@ import { SaveKeeper } from '../../app/host/saveKeeper';
 import { startInputLoop } from '../../app/inputLoop';
 import type { Logger } from '../../app/logger';
 import { config } from '../../config';
+import { EMPTY_PAD, type PadState } from '../../core/input/pad';
 import { enterFullscreen, exitFullscreen, isTouchDevice } from '../shared/device';
+import { EffectLayer } from '../shared/EffectLayer';
+import { EffectToggles, useEffectsPreference } from '../shared/EffectPicker';
 import { createTouchState, readTouch, TouchControls } from '../shared/TouchControls';
 import { t } from '../strings';
 import { LogPanel } from './LogPanel';
@@ -41,6 +44,9 @@ export function GameScreen({ source, stateStore, logger }: Props) {
   const stage = useRef<HTMLDivElement>(null);
   const isTouch = useMemo(isTouchDevice, []);
   const touch = useMemo(createTouchState, []);
+  /** Último estado do controle do host, para o efeito visual reagir a ele. */
+  const lastPad = useRef<PadState>(EMPTY_PAD);
+  const [effects, toggleEffect, clearEffects] = useEffectsPreference();
   const [fullscreen, setFullscreen] = useState(false);
   const [running, setRunning] = useState<Running | null>(null);
   const [failed, setFailed] = useState(false);
@@ -104,7 +110,13 @@ export function GameScreen({ source, stateStore, logger }: Props) {
       });
       session = s;
       // No celular, o host joga pelos mesmos controles touch do convidado.
-      stopInput = startInputLoop((pad) => s.setLocalPad(pad), isTouch ? [() => readTouch(touch)] : []);
+      stopInput = startInputLoop(
+        (pad) => {
+          lastPad.current = pad;
+          s.setLocalPad(pad);
+        },
+        isTouch ? [() => readTouch(touch)] : [],
+      );
       setRunning({ emulator, session: s, stream, keeper, rewind });
       await s.open(stream);
     })().catch((err: unknown) => {
@@ -173,9 +185,19 @@ export function GameScreen({ source, stateStore, logger }: Props) {
               {exiting ? t.host.saving : running?.keeper ? t.host.saveAndExit : t.host.backToLibrary}
             </button>
           </div>
+          <EffectToggles effects={effects} onToggle={toggleEffect} />
           {isTouch && source.kind === 'rom' && <p class="warn small">{t.host.phoneHostWarning}</p>}
           <div ref={stage} class="host-stage">
             <div ref={container} class="screen" />
+            <EffectLayer
+              stream={running?.stream ?? null}
+              effects={effects}
+              readPad={() => lastPad.current}
+              onError={(err) => {
+                logger.error(t.effects.failed, err);
+                clearEffects();
+              }}
+            />
             {/* Controles na tela só em tela cheia: em pé, o jogo fica pequeno demais para dividir espaço. */}
             {isTouch && fullscreen && <TouchControls state={touch} />}
             <button

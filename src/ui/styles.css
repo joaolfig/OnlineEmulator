@@ -549,3 +549,52 @@ th {
   font-weight: 600;
   pointer-events: none;
 }
+
+/* ---------- Efeito visual por cima do jogo ---------- */
+.effect-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: #000;
+  pointer-events: none;
+}
+.effect-layer canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.under-effect {
+  opacity: 0;
+}
+.stage .touch,
+.stage .hud,
+.stage .toast,
+.stage .overlay-message {
+  z-index: 4;
+}
+.effect-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.effect-toggles-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-right: 2px;
+}
+.effect-toggles button {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.effects-panel {
+  position: absolute;
+  top: 48px;
+  right: 8px;
+  z-index: 5;
+  background: rgba(20, 21, 30, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  max-width: calc(100% - 16px);
+}

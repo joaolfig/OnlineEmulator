@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const EXPERIMENTS = ['flat', 'tilt', 'crt', 'relief'];
+const EXPERIMENTS = ['flat', 'tilt', 'crt', 'relief', 'all'];
 
 // O laboratório é experimental, mas não pode quebrar: cada efeito precisa abrir e desenhar sem erros.
 test('laboratório de visual: todos os efeitos abrem e desenham sem erro', async ({ page }) => {

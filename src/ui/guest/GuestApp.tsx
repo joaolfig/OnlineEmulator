@@ -7,7 +7,10 @@ import { isDebugEnabled, Logger } from '../../app/logger';
 import { config } from '../../config';
 import { DEVICE_MODES, type DeviceMode } from '../../core/room/room';
 import { isValidRoomCode, normalizeRoomCode } from '../../core/util/roomCode';
+import { EMPTY_PAD, type PadState } from '../../core/input/pad';
 import { enterFullscreen, isTouchDevice } from '../shared/device';
+import { EffectLayer } from '../shared/EffectLayer';
+import { EffectToggles, useEffectsPreference } from '../shared/EffectPicker';
 import { createTouchState, readTouch, TouchControls } from '../shared/TouchControls';
 import { PORT_COLORS, t } from '../strings';
 
@@ -127,6 +130,11 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
   const hasPort = typeof port === 'number';
   const showVideo = mode !== 'controller';
   const showTouch = isTouch && mode !== 'watch' && hasPort;
+  const [effects, toggleEffect, clearEffects] = useEffectsPreference();
+  const [showEffects, setShowEffects] = useState(false);
+  const effectActive = showVideo && effects.length > 0;
+  /** Último estado do controle deste aparelho, para o efeito visual reagir a ele. */
+  const lastPad = useRef<PadState>(EMPTY_PAD);
 
   useEffect(() => {
     const el = video.current;
@@ -141,7 +149,13 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
 
   useEffect(() => {
     if (mode === 'watch') return;
-    return startInputLoop((pad) => session.tick(pad), isTouch ? [() => readTouch(touch)] : []);
+    return startInputLoop(
+      (pad) => {
+        lastPad.current = pad;
+        session.tick(pad);
+      },
+      isTouch ? [() => readTouch(touch)] : [],
+    );
   }, [session, touch, isTouch, mode]);
 
   const fullscreen = () => enterFullscreen(document.documentElement);
@@ -160,7 +174,19 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
 
   return (
     <div class={`stage${mode === 'controller' ? ' controller-mode' : ''}`}>
-      {showVideo && <video ref={video} playsInline autoplay />}
+      {/* Com efeito ligado o vídeo continua tocando (é ele que tem o som), mas fica escondido sob o efeito. */}
+      {showVideo && <video ref={video} playsInline autoplay class={effectActive ? 'under-effect' : ''} />}
+      {showVideo && (
+        <EffectLayer
+          stream={stream}
+          effects={effects}
+          readPad={() => lastPad.current}
+          onError={(err) => {
+            console.error(t.effects.failed, err);
+            clearEffects();
+          }}
+        />
+      )}
       {mode === 'controller' && (
         <div class="player-badge" style={{ color: playerColor }} aria-hidden="true">
           {hasPort ? t.guest.playerBadge(port) : '…'}
@@ -180,10 +206,25 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
           </span>
         )}
         <span class="grow" />
+        {showVideo && (
+          <button
+            class={effectActive ? 'primary' : ''}
+            aria-expanded={showEffects}
+            aria-label={t.effects.label}
+            onClick={() => setShowEffects((v) => !v)}
+          >
+            ✨
+          </button>
+        )}
         <button onClick={() => void fullscreen()} aria-label={t.guest.fullscreen}>
           ⛶
         </button>
       </div>
+      {showVideo && showEffects && (
+        <div class="effects-panel">
+          <EffectToggles effects={effects} onToggle={toggleEffect} />
+        </div>
+      )}
       {showRewound && rewound && <div class="toast">{t.guest.rewound(rewound.seconds)}</div>}
       {mode !== 'watch' && port === null && session.status.value === 'connected' && (
         <div class="overlay-message">{t.guest.waitingForPort}</div>

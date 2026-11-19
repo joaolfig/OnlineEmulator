@@ -1,5 +1,5 @@
 import type { VideoTexture, WebGLRenderer } from 'three';
-import type { PadState } from '../../core/input/pad';
+import type { PadState } from '../core/input/pad';
 
 /** Controle de uma experiência: deslizante, ou lista de opções quando `options` existe. */
 export interface ParamDef {
@@ -12,7 +12,7 @@ export interface ParamDef {
   readonly options?: readonly { readonly value: number; readonly label: string }[];
 }
 
-export interface LabInput {
+export interface EffectInput {
   readonly pad: PadState;
 }
 
@@ -28,7 +28,7 @@ export interface ExperimentContext {
 }
 
 export interface ExperimentInstance {
-  update(dtSeconds: number, input: LabInput): void;
+  update(dtSeconds: number, input: EffectInput): void;
   render(): void;
   resize(width: number, height: number): void;
   dispose(): void;
