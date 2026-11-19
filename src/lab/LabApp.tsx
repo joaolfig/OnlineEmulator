@@ -1,4 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import {
+  detectSystem,
+  N64_SYSTEM,
+  SUPPORTED_EXTENSIONS,
+  SYSTEMS,
+  type SystemInfo,
+} from '../adapters/emulator/systems';
 import { RomLibrary, type RomMeta } from '../adapters/storage/romLibrary';
 import { startInputLoop } from '../app/inputLoop';
 import { splitGameName } from '../core/catalog/thumbnails';
@@ -33,6 +40,7 @@ export function LabApp() {
   const stageEl = useRef<HTMLDivElement>(null);
   const originalEl = useRef<HTMLDivElement>(null);
   const emulatorEl = useRef<HTMLDivElement>(null);
+  const romInput = useRef<HTMLInputElement>(null);
   const stage = useRef<LabStage | null>(null);
   const source = useRef<LabSource | null>(null);
   // Objeto mutável compartilhado com a experiência: mexer no controle deslizante não recria a cena.
@@ -81,21 +89,38 @@ export function LabApp() {
     setParams({ ...liveParams.current });
   };
 
-  const loadRom = async (rom: RomMeta) => {
+  /** Roda uma ROM no lugar da cena demo (só uma por página: o EmulatorJS não reinicia). */
+  const runRom = async (
+    title: string,
+    getFile: () => Promise<File>,
+    system: SystemInfo,
+    saveName: string,
+  ) => {
     if (!emulatorEl.current || !stage.current) return;
     setError(null);
-    setRomSource(splitGameName(rom.catalogName ?? rom.name).title);
+    setRomSource(`${title} (${system.label})`);
     try {
-      const file = await new RomLibrary().load(rom.id);
+      const file = await getFile();
       source.current?.dispose();
       // Nome separado: o save do cartucho no laboratório não mistura com o jogo de verdade.
-      const romSrc = await createRomSource(file, `${rom.name} (lab)`, emulatorEl.current);
+      const romSrc = await createRomSource(file, `${saveName} (lab)`, system, emulatorEl.current);
       source.current = romSrc;
       originalEl.current?.replaceChildren();
       await stage.current.setSource(romSrc.stream);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
+  };
+
+  const openFromDisk = (file: File | undefined) => {
+    if (!file) return;
+    const system = detectSystem(file.name);
+    if (!system) {
+      setError(`Formato não reconhecido. Use: ${SUPPORTED_EXTENSIONS.join(' ')}`);
+      return;
+    }
+    const name = file.name.replace(/\.[^.]+$/, '');
+    void runRom(name, () => Promise.resolve(file), system, name);
   };
 
   return (
@@ -115,20 +140,46 @@ export function LabApp() {
               Cena demo
             </button>
             {roms.map((rom) => (
-              <button key={rom.id} disabled={!!romSource} onClick={() => void loadRom(rom)}>
+              <button
+                key={rom.id}
+                disabled={!!romSource}
+                onClick={() =>
+                  void runRom(
+                    splitGameName(rom.catalogName ?? rom.name).title,
+                    () => new RomLibrary().load(rom.id),
+                    N64_SYSTEM,
+                    rom.name,
+                  )
+                }
+              >
                 {splitGameName(rom.catalogName ?? rom.name).title}
               </button>
             ))}
+            <button disabled={!!romSource} onClick={() => romInput.current?.click()}>
+              Abrir ROM do computador…
+            </button>
+            <input
+              ref={romInput}
+              type="file"
+              accept={SUPPORTED_EXTENSIONS.join(',')}
+              hidden
+              onChange={(e) => {
+                openFromDisk(e.currentTarget.files?.[0]);
+                e.currentTarget.value = '';
+              }}
+            />
           </div>
-          {romSource ? (
-            <p class="muted small">Rodando {romSource}. Para voltar à cena demo, recarregue a página.</p>
-          ) : (
-            roms.length === 0 && (
-              <p class="muted small">Adicione ROMs na biblioteca do host para testar com jogos de verdade.</p>
-            )
+          <p class="muted small">
+            Do computador: {SYSTEMS.map((s) => s.label).join(', ')}. Bom para testar a luz em jogos 2D.
+          </p>
+          {romSource && (
+            <p class="muted small">Rodando {romSource}. Para trocar de jogo, recarregue a página.</p>
           )}
           {error && <p class="err small">{error}</p>}
-          <p class="muted small">Controles: WASD/setas para andar, K = A (pular), ou um controle.</p>
+          <p class="muted small">
+            Controles: WASD/setas = direcional, K = A, J = B, F = Y, T = X, L = Select, Enter = Start, Q/E =
+            L/R, ou um controle.
+          </p>
         </section>
 
         <section class="stack tight">

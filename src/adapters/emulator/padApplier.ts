@@ -1,5 +1,6 @@
-import { AXIS_LIMIT, BUTTONS, EMPTY_PAD, type PadState } from '../../core/input/pad';
-import { AXIS_VALUE_MAX, FIRST_ANALOG_INDEX, N64_BUTTON_INDEX, N64_STICK_INDEX } from './n64map';
+import { AXIS_LIMIT, BUTTONS, EMPTY_PAD, foldStickIntoDpad, type PadState } from '../../core/input/pad';
+import { AXIS_VALUE_MAX, FIRST_ANALOG_INDEX, N64_STICK_INDEX } from './n64map';
+import { N64_MAPPING, type PadMapping } from './systems';
 
 export type SimulateInput = (port: number, index: number, value: number) => void;
 
@@ -9,14 +10,19 @@ const axisValue = (v: number): number => Math.round((Math.abs(v) / AXIS_LIMIT) *
 export class PadApplier {
   private readonly last = new Map<number, PadState>();
 
-  constructor(private readonly simulateInput: SimulateInput) {}
+  constructor(
+    private readonly simulateInput: SimulateInput,
+    private readonly mapping: PadMapping = N64_MAPPING,
+  ) {}
 
-  apply(port: number, pad: PadState): void {
+  apply(port: number, input: PadState): void {
+    const pad = this.mapping.stick === 'dpad' ? foldStickIntoDpad(input) : input;
     const prev = this.last.get(port) ?? EMPTY_PAD;
     const changed = prev.buttons ^ pad.buttons;
     BUTTONS.forEach((button, bit) => {
       if (!(changed & (1 << bit))) return;
-      const index = N64_BUTTON_INDEX[button];
+      const index = this.mapping.buttons[button];
+      if (index === undefined) return; // botão que esse console não tem
       const down = (pad.buttons & (1 << bit)) !== 0;
       this.simulateInput(port, index, down ? (index >= FIRST_ANALOG_INDEX ? AXIS_VALUE_MAX : 1) : 0);
     });

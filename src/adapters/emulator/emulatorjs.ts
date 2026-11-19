@@ -2,6 +2,7 @@ import { config } from '../../config';
 import type { PadState } from '../../core/input/pad';
 import { installAudioTap, tappedAudio } from '../media/audioTap';
 import { PadApplier } from './padApplier';
+import type { SystemInfo } from './systems';
 import { EmulatorLoadError, type Emulator, type EmulatorSaves } from './types';
 
 const AUDIO_TAP_TIMEOUT_MS = 3000;
@@ -40,7 +41,8 @@ const DEFAULT_OPTIONS = {
 
 export interface EmulatorJSOptions {
   readonly rom: File;
-  readonly core: 'n64';
+  /** Console da ROM (define o core do EmulatorJS e o mapeamento dos botões). */
+  readonly system: SystemInfo;
   readonly gameName: string;
 }
 
@@ -64,7 +66,7 @@ export class EmulatorJSAdapter implements Emulator {
     return new Promise((resolve, reject) => {
       Object.assign(window, {
         EJS_player: `#${container.id}`,
-        EJS_core: this.options.core,
+        EJS_core: this.options.system.id,
         EJS_gameUrl: this.options.rom,
         EJS_gameName: this.options.gameName,
         EJS_pathtodata: config.ejsDataUrl,
@@ -78,8 +80,9 @@ export class EmulatorJSAdapter implements Emulator {
           const ejs = window.EJS_emulator;
           if (!ejs) return reject(new EmulatorLoadError('EmulatorJS iniciou sem expor a instância'));
           this.ejs = ejs;
-          this.padApplier = new PadApplier((port, index, value) =>
-            ejs.gameManager.simulateInput(port, index, value),
+          this.padApplier = new PadApplier(
+            (port, index, value) => ejs.gameManager.simulateInput(port, index, value),
+            this.options.system.mapping,
           );
           resolve();
         },

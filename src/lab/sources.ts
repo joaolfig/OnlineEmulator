@@ -1,4 +1,5 @@
 import { EmulatorJSAdapter } from '../adapters/emulator/emulatorjs';
+import type { SystemInfo } from '../adapters/emulator/systems';
 import type { PadState } from '../core/input/pad';
 import { DemoScene } from './demoScene';
 
@@ -22,13 +23,14 @@ export function createDemoSource(): LabSource {
   };
 }
 
-/** ROM da biblioteca rodando no EmulatorJS (o mesmo adapter do host), jogando como P1. */
+/** ROM rodando no EmulatorJS (o mesmo adapter do host), jogando como P1. */
 export async function createRomSource(
   rom: File,
   gameName: string,
+  system: SystemInfo,
   container: HTMLElement,
 ): Promise<LabSource> {
-  const emulator = new EmulatorJSAdapter({ rom, core: 'n64', gameName });
+  const emulator = new EmulatorJSAdapter({ rom, system, gameName });
   await emulator.start(container);
   return {
     stream: await emulator.captureStream(60),

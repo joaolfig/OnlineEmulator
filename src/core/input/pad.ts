@@ -59,3 +59,19 @@ export function mergePads(pads: readonly PadState[]): PadState {
   }
   return { buttons, x, y };
 }
+
+/** A partir de quanto o analógico conta como direcional apertado (metade do curso). */
+export const STICK_TO_DPAD_THRESHOLD = AXIS_LIMIT / 2;
+
+/**
+ * Para consoles sem analógico: transforma a inclinação do analógico em direcional
+ * (somando com o direcional que já estiver apertado) e zera o analógico.
+ */
+export function foldStickIntoDpad(pad: PadState, threshold = STICK_TO_DPAD_THRESHOLD): PadState {
+  let buttons = pad.buttons;
+  if (pad.y <= -threshold) buttons |= buttonMask('DUP');
+  if (pad.y >= threshold) buttons |= buttonMask('DDOWN');
+  if (pad.x <= -threshold) buttons |= buttonMask('DLEFT');
+  if (pad.x >= threshold) buttons |= buttonMask('DRIGHT');
+  return { buttons, x: 0, y: 0 };
+}

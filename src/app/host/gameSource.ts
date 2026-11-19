@@ -1,5 +1,6 @@
 import { EmulatorJSAdapter } from '../../adapters/emulator/emulatorjs';
 import { FakeEmulator } from '../../adapters/emulator/fake';
+import { N64_SYSTEM } from '../../adapters/emulator/systems';
 import type { Emulator } from '../../adapters/emulator/types';
 import { config } from '../../config';
 
@@ -18,9 +19,10 @@ export type GameSource =
     }
   | { readonly kind: 'test' };
 
+/** A sala de verdade ainda é só N64 (os outros consoles estão no laboratório). */
 export function createEmulator(source: GameSource): Emulator {
   return source.kind === 'rom'
-    ? new EmulatorJSAdapter({ rom: source.file, core: 'n64', gameName: source.name })
+    ? new EmulatorJSAdapter({ rom: source.file, system: N64_SYSTEM, gameName: source.name })
     : new FakeEmulator(config.portCount);
 }
 
