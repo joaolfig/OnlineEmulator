@@ -1,0 +1,276 @@
+import { signal } from '@preact/signals-core';
+import type { Emulator } from '../../adapters/emulator/types';
+import { readVideoStats, tuneVideoSender, type VideoSendSettings } from '../../adapters/media/rtc';
+import {
+  RoomCodeTakenError,
+  type HostTransport,
+  type Link,
+  type MediaSession,
+  type Unsubscribe,
+} from '../../adapters/net/types';
+import { config } from '../../config';
+import type { PadState } from '../../core/input/pad';
+import { decodeInput } from '../../core/protocol/inputCodec';
+import { parseGuestMessage, PROTOCOL_VERSION, type HostMessage } from '../../core/protocol/messages';
+import { isNewerSeq } from '../../core/protocol/seq';
+import {
+  createRoom,
+  HOST_ID,
+  join,
+  leave,
+  portChanges,
+  portOf,
+  setPort,
+  type Port,
+  type RoomState,
+} from '../../core/room/room';
+import { RateLimiter } from '../../core/util/rateLimiter';
+import { generateRoomCode, type RandomBytes } from '../../core/util/roomCode';
+import type { Logger } from '../logger';
+
+const MAX_ROOM_CODE_ATTEMPTS = 3;
+
+export interface GuestStats {
+  readonly rttMs: number | null;
+  readonly kbps: number | null;
+  readonly fps: number | null;
+}
+
+export interface HostSessionDeps {
+  readonly emulator: Emulator;
+  readonly transport: HostTransport;
+  readonly logger: Logger;
+  readonly hostName: string;
+  readonly randomBytes: RandomBytes;
+  readonly now?: () => number;
+}
+
+interface GuestConnection {
+  readonly link: Link;
+  readonly limiter: RateLimiter;
+  readonly unsubscribe: Unsubscribe[];
+  joined: boolean;
+  media: MediaSession | null;
+  lastSeq: number | null;
+  lastBytes: number | null;
+  stats: GuestStats;
+}
+
+export type HostStatus = 'idle' | 'opening' | 'open' | 'error';
+
+/**
+ * Orquestra o lado do host: abre a sala, aceita convidados, distribui portas,
+ * aplica os inputs no emulador e transmite o vídeo. Não conhece a UI nem o PeerJS.
+ */
+export class HostSession {
+  readonly room = signal<RoomState>(createRoom('', config.portCount));
+  readonly roomCode = signal<string | null>(null);
+  readonly status = signal<HostStatus>('idle');
+  readonly stats = signal<ReadonlyMap<string, GuestStats>>(new Map());
+  readonly videoSettings = signal<VideoSendSettings>({
+    maxBitrate: config.video.defaultBitrate,
+    maxFramerate: config.video.defaultFps,
+  });
+
+  private readonly guests = new Map<string, GuestConnection>();
+  private readonly now: () => number;
+  private stream: MediaStream | null = null;
+  private statsTimer: ReturnType<typeof setInterval> | undefined;
+  private unsubscribeLinks: Unsubscribe | null = null;
+
+  constructor(private readonly deps: HostSessionDeps) {
+    this.now = deps.now ?? (() => performance.now());
+    this.room.value = createRoom(deps.hostName, config.portCount);
+  }
+
+  get guestCount(): number {
+    return [...this.guests.values()].filter((g) => g.joined).length;
+  }
+
+  /** Abre a sala com um código novo (tentando outro se o código já estiver em uso). */
+  async open(stream: MediaStream): Promise<void> {
+    const { transport, logger, randomBytes } = this.deps;
+    this.stream = stream;
+    this.status.value = 'opening';
+    this.unsubscribeLinks = transport.onLink((link) => this.acceptLink(link));
+    for (let attempt = 1; ; attempt++) {
+      const code = generateRoomCode(config.roomCodeLength, randomBytes);
+      try {
+        await transport.open(code);
+        this.roomCode.value = code;
+        this.status.value = 'open';
+        logger.success(`Sala ${code} aberta`);
+        break;
+      } catch (err) {
+        if (err instanceof RoomCodeTakenError && attempt < MAX_ROOM_CODE_ATTEMPTS) continue;
+        this.status.value = 'error';
+        logger.error('Não foi possível abrir a sala', err);
+        throw err;
+      }
+    }
+    this.statsTimer = setInterval(() => void this.pollStats(), config.statsIntervalMs);
+  }
+
+  /** Controles do próprio host (teclado/gamepad do PC), aplicados na porta atual dele. */
+  setLocalPad(pad: PadState): void {
+    const port = portOf(this.room.value, HOST_ID);
+    if (port !== null) this.deps.emulator.setInput(port, pad);
+  }
+
+  /** Move alguém de porta; se estiver ocupada, os dois trocam. */
+  setPort(participantId: string, port: Port): void {
+    const before = this.room.value;
+    const after = setPort(before, participantId, port);
+    const changes = portChanges(before, after);
+    if (changes.length === 0) return;
+    for (const { from, to } of changes) {
+      if (from !== null) this.deps.emulator.releaseAll(from);
+      if (to !== null) this.deps.emulator.releaseAll(to);
+    }
+    this.room.value = after;
+    for (const { id, to } of changes) this.send(id, { type: 'port', port: to });
+    this.broadcastLobby();
+    const names = changes.map(({ id, to }) => {
+      const name = after.participants.find((p) => p.id === id)?.name ?? id;
+      return `${name} → ${to === null ? 'espectador' : `P${to + 1}`}`;
+    });
+    this.deps.logger.info(names.join(' · '));
+  }
+
+  setVideoSettings(settings: VideoSendSettings): void {
+    this.videoSettings.value = settings;
+    for (const guest of this.guests.values()) this.tune(guest);
+  }
+
+  close(): void {
+    clearInterval(this.statsTimer);
+    this.unsubscribeLinks?.();
+    for (const guest of [...this.guests.values()]) guest.link.close();
+    this.deps.transport.destroy();
+    this.status.value = 'idle';
+  }
+
+  // ---------- Convidados ----------
+
+  private acceptLink(link: Link): void {
+    const guest: GuestConnection = {
+      link,
+      limiter: new RateLimiter(config.maxControlMessagesPerSecond, this.now),
+      unsubscribe: [],
+      joined: false,
+      media: null,
+      lastSeq: null,
+      lastBytes: null,
+      stats: { rttMs: null, kbps: null, fps: null },
+    };
+    this.guests.set(link.peerId, guest);
+    guest.unsubscribe.push(
+      link.onControl((data) => this.handleControl(guest, data)),
+      link.onInput((data) => this.handleInput(guest, data)),
+      link.onClose(() => this.removeGuest(guest)),
+    );
+  }
+
+  private handleControl(guest: GuestConnection, data: unknown): void {
+    if (!guest.limiter.tryConsume()) return;
+    const message = parseGuestMessage(data);
+    if (!message) {
+      this.deps.logger.debug(`Mensagem inválida de ${guest.link.peerId}`);
+      return;
+    }
+    switch (message.type) {
+      case 'hello':
+        return this.handleHello(guest, message.v, message.name);
+      case 'ping':
+        return guest.link.sendControl({ type: 'pong', ts: message.ts } satisfies HostMessage);
+      case 'rtt':
+        guest.stats = { ...guest.stats, rttMs: Math.round(message.ms) };
+        return;
+    }
+  }
+
+  private handleHello(guest: GuestConnection, version: number, name: string): void {
+    if (guest.joined) return;
+    if (version !== PROTOCOL_VERSION) {
+      guest.link.sendControl({ type: 'error', code: 'version-mismatch' } satisfies HostMessage);
+      guest.link.close();
+      return;
+    }
+    const id = guest.link.peerId;
+    this.room.value = join(this.room.value, id, name);
+    guest.joined = true;
+    const port = portOf(this.room.value, id);
+    guest.link.sendControl({ type: 'welcome', port } satisfies HostMessage);
+    this.deps.logger.success(`${name} entrou como ${port === null ? 'espectador' : `P${port + 1}`}`);
+    if (this.stream) {
+      guest.media = this.deps.transport.sendMedia(id, this.stream);
+      const pc = guest.media.pc;
+      pc?.addEventListener('connectionstatechange', () => {
+        if (pc.connectionState === 'connected') this.tune(guest);
+      });
+    }
+    this.broadcastLobby();
+  }
+
+  private handleInput(guest: GuestConnection, data: unknown): void {
+    if (!guest.joined) return;
+    const port = portOf(this.room.value, guest.link.peerId);
+    if (port === null) return;
+    const packet = decodeInput(data);
+    if (!packet) return;
+    if (guest.lastSeq !== null && !isNewerSeq(packet.seq, guest.lastSeq)) return;
+    guest.lastSeq = packet.seq;
+    // Fase 1: um jogador por aparelho (jogador local 0). Vários por aparelho entram na Fase 2.
+    const player = packet.players.find((p) => p.local === 0);
+    if (player) this.deps.emulator.setInput(port, player.pad);
+  }
+
+  private removeGuest(guest: GuestConnection): void {
+    const id = guest.link.peerId;
+    if (!this.guests.delete(id)) return;
+    guest.unsubscribe.forEach((fn) => fn());
+    guest.media?.close();
+    if (!guest.joined) return;
+    const port = portOf(this.room.value, id);
+    if (port !== null) this.deps.emulator.releaseAll(port);
+    const name = this.room.value.participants.find((p) => p.id === id)?.name ?? id;
+    this.room.value = leave(this.room.value, id);
+    this.deps.logger.info(`${name} saiu`);
+    this.broadcastLobby();
+  }
+
+  private send(participantId: string, message: HostMessage): void {
+    this.guests.get(participantId)?.link.sendControl(message);
+  }
+
+  private broadcastLobby(): void {
+    const message: HostMessage = {
+      type: 'lobby',
+      players: this.room.value.participants.map(({ name, port, isHost }) => ({ name, port, isHost })),
+    };
+    for (const guest of this.guests.values()) if (guest.joined) guest.link.sendControl(message);
+  }
+
+  private tune(guest: GuestConnection): void {
+    const pc = guest.media?.pc;
+    if (!pc || pc.connectionState !== 'connected') return;
+    tuneVideoSender(pc, this.videoSettings.value).catch((err: unknown) =>
+      this.deps.logger.warn(`Ajuste de vídeo falhou: ${err instanceof Error ? err.message : String(err)}`),
+    );
+  }
+
+  private async pollStats(): Promise<void> {
+    const seconds = config.statsIntervalMs / 1000;
+    for (const guest of this.guests.values()) {
+      const pc = guest.media?.pc;
+      if (!pc) continue;
+      const video = await readVideoStats(pc, 'outbound');
+      if (!video) continue;
+      const kbps =
+        guest.lastBytes === null ? null : Math.round(((video.bytes - guest.lastBytes) * 8) / 1000 / seconds);
+      guest.lastBytes = video.bytes;
+      guest.stats = { ...guest.stats, kbps, fps: video.fps };
+    }
+    this.stats.value = new Map([...this.guests].map(([id, g]) => [id, g.stats]));
+  }
+}

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spike Host</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+</head>
+<body>
+  <div class="wrap stack">
+    <header>
+      <h1>OnlineEmulator: spike do host</h1>
+      <div class="muted">Fase 0. Testa emulador, captura de vídeo e áudio, inputs remotos, saves e conexão P2P.</div>
+    </header>
+
+    <section class="panel" id="setup">
+      <h2>1. Iniciar</h2>
+      <div class="stack">
+        <div class="row">
+          <label for="rom">ROM do N64:</label>
+          <input type="file" id="rom" accept=".z64,.n64,.v64,.zip,.7z">
+          <button id="startRom" class="primary" disabled>Iniciar jogo</button>
+          <span class="muted">ou</span>
+          <button id="startFake">Modo teste (sem ROM)</button>
+        </div>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="noDefaultControls" checked> Desligar controles padrão do EmulatorJS (necessário para o host trocar de porta)</label>
+        </div>
+        <div class="row">
+          <span class="muted">Captura de áudio:</span>
+          <label class="check"><input type="radio" name="audioMode" value="ejs" checked> Função do EmulatorJS</label>
+          <label class="check"><input type="radio" name="audioMode" value="tap"> Interceptar AudioNode (plano B)</label>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid" id="main" hidden>
+      <div class="stack">
+        <section class="panel">
+          <h2>Emulador</h2>
+          <div id="game"></div>
+        </section>
+        <section class="panel">
+          <div class="row" style="justify-content:space-between">
+            <h2>Preview do que os convidados recebem</h2>
+            <label class="check muted"><input type="checkbox" id="showPreview" checked> Mostrar preview</label>
+          </div>
+          <div id="previewBox">
+            <video id="preview" muted playsinline autoplay></video>
+            <div class="row" style="margin-top:8px">
+              <button id="toggleListen">🔈 Ouvir áudio capturado</button>
+              <span class="muted">Para testar: abaixe o volume no menu do emulador e ouça o preview. Se tiver som, a captura funciona.</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="panel">
+          <h2>Sala</h2>
+          <div id="roomStatus" class="muted">Conectando ao servidor PeerJS…</div>
+          <div id="roomInfo" hidden>
+            <div class="code mono" id="roomCode"></div>
+            <div class="row" style="margin:8px 0">
+              <a id="guestLink" target="_blank" rel="noopener"></a>
+              <button id="copyLink">Copiar</button>
+            </div>
+            <div class="qr" id="qr"></div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <span class="muted">Bitrate de vídeo:</span>
+            <select id="bitrate">
+              <option value="1000000">1 Mbps</option>
+              <option value="2500000" selected>2,5 Mbps</option>
+              <option value="4000000">4 Mbps</option>
+            </select>
+            <span class="muted">FPS do vídeo:</span>
+            <select id="streamFps">
+              <option value="60" selected>60</option>
+              <option value="30">30</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Jogadores</h2>
+          <table>
+            <thead><tr><th>Porta</th><th>Nome</th><th>Ping</th><th>Envio</th></tr></thead>
+            <tbody id="players"></tbody>
+          </table>
+          <div class="muted" style="margin-top:6px">Escolher uma porta ocupada troca os dois jogadores de lugar. O host joga com o teclado (WASD, K, J, L, Enter…) ou um controle.</div>
+        </section>
+
+        <section class="panel">
+          <h2>Testar input no P2</h2>
+          <div class="muted" style="margin-bottom:8px">Segure os botões. Simula um convidado na porta 2 via <code>simulateInput</code>.</div>
+          <div class="row" id="p2buttons"></div>
+        </section>
+
+        <section class="panel" id="savesPanel">
+          <h2>Saves</h2>
+          <div class="row">
+            <button id="exportSave">⬇ Save do cartucho</button>
+            <button id="importSave">⬆ Importar save</button>
+            <button id="exportState">⬇ Savestate</button>
+            <button id="importState">⬆ Importar savestate</button>
+          </div>
+          <input type="file" id="saveFile" hidden>
+        </section>
+
+        <section class="panel">
+          <h2>Log</h2>
+          <div class="log mono" id="log"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="host.js"></script>
+</body>
+</html>

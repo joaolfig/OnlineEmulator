@@ -1,0 +1,13 @@
+# Nunca commitar ROMs nem saves
+*.z64
+*.n64
+*.v64
+*.eep
+*.sav
+*.srm
+*.state
+
+node_modules/
+dist/
+playwright-report/
+test-results/

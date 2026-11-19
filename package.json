@@ -1,0 +1,48 @@
+{
+  "name": "online-emulator",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Emulador no navegador para jogar online com amigos via P2P (EmulatorJS + PeerJS)",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test"
+  },
+  "dependencies": {
+    "@preact/signals": "2.11.4",
+    "@preact/signals-core": "1.14.5",
+    "idb": "8.0.4",
+    "peerjs": "1.5.5",
+    "preact": "11.2.0",
+    "qrcode-generator": "2.0.4",
+    "valibot": "1.5.0"
+  },
+  "devDependencies": {
+    "@babel/core": "7.29.13",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.65.1",
+    "@preact/preset-vite": "2.10.6",
+    "@types/node": "26.6.6",
+    "eslint": "10.15.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.14.0",
+    "prettier": "3.10.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.73.0",
+    "vite": "8.3.8",
+    "vitest": "5.1.1"
+  }
+}

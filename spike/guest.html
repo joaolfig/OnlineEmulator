@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Spike Convidado</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
+  <style>
+    body { overscroll-behavior: none; }
+    #join { max-width: 420px; margin: 10vh auto; }
+    #stage { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; user-select: none; -webkit-user-select: none; }
+    #stage video { width: 100%; height: 100%; object-fit: contain; aspect-ratio: auto; border-radius: 0; }
+    #hud { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 8px; align-items: center; font-size: 13px; pointer-events: none; }
+    #hud .pill { background: rgba(0,0,0,.6); padding: 4px 10px; border-radius: 99px; }
+    #hud button { pointer-events: auto; padding: 4px 10px; background: rgba(0,0,0,.6); }
+    #touch { position: absolute; inset: 0; display: none; }
+    body.touch #touch { display: block; }
+    .stick { position: absolute; left: 0; bottom: 0; width: 45%; height: 70%; }
+    .knob { position: absolute; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); display: none; }
+    .knob i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(255,255,255,.45); }
+    .tbtn { position: absolute; border-radius: 50%; background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.35); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+    .tbtn.on { background: rgba(91,140,255,.6); }
+    .help { font-size: 13px; color: var(--muted); }
+    .help kbd { background: #262938; border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; font-family: inherit; }
+  </style>
+</head>
+<body>
+  <div class="wrap" id="join">
+    <div class="panel stack">
+      <h1>Entrar na sala</h1>
+      <label>Código da sala<br><input id="code" class="mono" maxlength="6" autocapitalize="characters" style="width:100%"></label>
+      <label>Seu nome<br><input id="name" maxlength="20" style="width:100%"></label>
+      <button id="enter" class="primary">Entrar</button>
+      <div id="status" class="muted"></div>
+      <div class="help">
+        Teclado: analógico <kbd>W A S D</kbd> ou setas (<kbd>Shift</kbd> = meia força) · A <kbd>K</kbd> · B <kbd>J</kbd> · Z <kbd>L</kbd> · Start <kbd>Enter</kbd> · L <kbd>Q</kbd> · R <kbd>E</kbd> · C <kbd>T F G H</kbd><br>
+        Controle USB/Bluetooth também funciona. No celular aparecem botões na tela.
+      </div>
+    </div>
+  </div>
+
+  <div id="stage" hidden>
+    <video id="video" playsinline autoplay></video>
+    <div id="touch"></div>
+    <div id="hud">
+      <span class="pill" id="who">Conectando…</span>
+      <span class="pill mono" id="net"></span>
+      <span style="flex:1"></span>
+      <button id="fs">⛶</button>
+    </div>
+  </div>
+  <script type="module" src="guest.js"></script>
+</body>
+</html>
