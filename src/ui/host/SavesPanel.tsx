@@ -1,16 +1,19 @@
 import { useRef } from 'preact/hooks';
 import type { EmulatorSaves } from '../../adapters/emulator/types';
 import { datedFileName, readFileBytes, saveFile } from '../../adapters/storage/files';
+import type { SaveKeeper } from '../../app/host/saveKeeper';
 import type { Logger } from '../../app/logger';
-import { t } from '../strings';
+import { formatTime, t } from '../strings';
 
 interface Props {
   readonly saves: EmulatorSaves | null;
-  readonly gameName: string;
+  readonly keeper: SaveKeeper | null;
+  /** Nome base dos arquivos baixados. */
+  readonly fileBaseName: string;
   readonly logger: Logger;
 }
 
-export function SavesPanel({ saves, gameName, logger }: Props) {
+export function SavesPanel({ saves, keeper, fileBaseName, logger }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const importAction = useRef<((data: Uint8Array) => void) | null>(null);
 
@@ -39,13 +42,25 @@ export function SavesPanel({ saves, gameName, logger }: Props) {
   return (
     <section class="panel stack">
       <h2>{t.host.saves}</h2>
+      {keeper && (
+        <div class="row spread">
+          <span class="muted small">
+            {t.host.autoSaveStatus(
+              formatTime(keeper.lastCartridgeSave.value),
+              formatTime(keeper.lastStateSave.value),
+            )}
+          </span>
+          <button onClick={() => void keeper.saveAll()}>{t.host.saveNow}</button>
+        </div>
+      )}
       <div class="row">
         <button
           onClick={() =>
             void attempt(async () => {
+              await keeper?.flushCartridge();
               const data = saves.exportSave();
               if (!data) return logger.warn(t.host.noSaveYet);
-              await saveFile(data, datedFileName(gameName, saves.saveExtension));
+              await saveFile(data, datedFileName(fileBaseName, saves.saveExtension));
             }, 'Não foi possível baixar o save')
           }
         >
@@ -55,7 +70,7 @@ export function SavesPanel({ saves, gameName, logger }: Props) {
         <button
           onClick={() =>
             void attempt(
-              () => saveFile(saves.exportState(), datedFileName(gameName, 'state')),
+              () => saveFile(saves.exportState(), datedFileName(fileBaseName, 'state')),
               'Não foi possível baixar o savestate',
             )
           }

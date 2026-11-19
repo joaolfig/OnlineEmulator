@@ -391,6 +391,8 @@ O HTTPS do Pages é **obrigatório** e já vem pronto: WebRTC, Gamepad e tela ch
 ## 7. Roadmap
 
 > **Status (2026-11-19):** Fase 0 concluída e validada com o jogo de verdade. Fase 1 implementada: os testes unitários, de integração e ponta a ponta passam, e o deploy no GitHub Pages está configurado. Notas da implementação: o controle touch foi feito à mão (~100 linhas) em vez de usar o nipplejs, e o estado da UI usa `@preact/signals`.
+>
+> **Adiantado das Fases 2 e 4:** save do cartucho gravado a cada 1 minuto (o EmulatorJS sozinho gravava a cada 5), botão "Sair e salvar", "Continuar de onde parou" (savestate automático a cada 5 minutos e ao sair, últimos 3 por jogo), capas e nomes oficiais pelo catálogo do libretro (com capa personalizada opcional), e os modos de aparelho "Só controle" (sem vídeo) e "Só assistir" (tela/espectador).
 
 ### Fase 0: Spike técnico (validar os riscos antes de tudo)
 > O código do spike é **descartável**: serve só para tirar as dúvidas. O que for aprendido vira os adapters da Fase 1, já com testes e tipos.

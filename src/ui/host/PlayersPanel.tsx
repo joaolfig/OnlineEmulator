@@ -33,15 +33,20 @@ export function PlayersPanel({ session }: { session: HostSession }) {
                     value={portToValue(p.port)}
                     onChange={(e) => session.setPort(p.id, valueToPort(e.currentTarget.value))}
                   >
-                    {Array.from({ length: room.portCount }, (_, i) => (
-                      <option key={i} value={String(i)}>
-                        P{i + 1}
-                      </option>
-                    ))}
+                    {/* Aparelho "só tela" não tem controles: só pode ser espectador. */}
+                    {p.mode !== 'watch' &&
+                      Array.from({ length: room.portCount }, (_, i) => (
+                        <option key={i} value={String(i)}>
+                          P{i + 1}
+                        </option>
+                      ))}
                     <option value={SPECTATOR}>{t.host.spectator}</option>
                   </select>
                 </td>
-                <td>{p.isHost ? t.host.hostName : p.name}</td>
+                <td>
+                  {p.isHost ? t.host.hostName : p.name}{' '}
+                  {t.host.modeLabel[p.mode] && <span class="muted small">{t.host.modeLabel[p.mode]}</span>}
+                </td>
                 <td>{s?.rttMs != null ? `${s.rttMs} ms` : '—'}</td>
                 <td>{s?.kbps != null ? `${s.kbps} kbps · ${s.fps ?? '?'} fps` : '—'}</td>
               </tr>

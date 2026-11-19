@@ -6,10 +6,14 @@ interface EjsFileSystem {
   mkdir(path: string): void;
   unlink(path: string): void;
   writeFile(path: string, data: Uint8Array): void;
+  /** Sincroniza o sistema de arquivos com o IndexedDB (populate=false: memória → disco). */
+  syncfs(populate: boolean, callback: (err: unknown) => void): void;
 }
 
 interface EjsGameManager {
   simulateInput(player: number, index: number, value: number): void;
+  /** Pede ao core para escrever a memória do cartucho nos arquivos de save. */
+  saveSaveFiles(): void;
   getSaveFile(save?: boolean): Uint8Array | null;
   getSaveFilePath(): string;
   loadSaveFiles(): void;

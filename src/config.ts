@@ -27,6 +27,15 @@ export const config = {
   /** Limite de mensagens de controle por segundo por convidado (o resto é descartado). */
   maxControlMessagesPerSecond: 30,
 
+  saves: {
+    /** Grava a memória do cartucho no navegador (o próprio EmulatorJS só grava a cada 5 min). */
+    cartridgeFlushIntervalMs: 60_000,
+    /** Savestate automático para "continuar de onde parou". */
+    autoStateIntervalMs: 5 * 60_000,
+    /** Quantos savestates automáticos guardar por jogo. */
+    autoStatesKept: 3,
+  },
+
   video: {
     captureFps: 60,
     defaultFps: 60,

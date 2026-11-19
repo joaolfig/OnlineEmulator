@@ -17,6 +17,8 @@ export interface Emulator {
 }
 
 export interface EmulatorSaves {
+  /** Grava a memória do cartucho no armazenamento do navegador e espera terminar. */
+  flushSave(): Promise<void>;
   /** Save do cartucho (ex.: EEPROM). null se o jogo ainda não gravou nada. */
   exportSave(): Uint8Array | null;
   /** Extensão do arquivo de save usada pelo core (ex.: "eep", "srm"). */

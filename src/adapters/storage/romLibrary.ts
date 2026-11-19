@@ -1,46 +1,31 @@
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { identifyN64Rom } from '../catalog/n64Catalog';
+import { sha1Hex } from './hash';
+import { openLibraryDb, type LibraryDb, type RomMeta } from './libraryDb';
 
-// Biblioteca de ROMs do host no IndexedDB (armazenamento em disco, não ocupa RAM).
-// Metadados e dados ficam em stores separados para listar a biblioteca sem carregar os arquivos.
+export type { RomMeta } from './libraryDb';
 
-export interface RomMeta {
-  /** SHA-1 do arquivo: identifica o jogo e evita duplicatas. */
-  readonly id: string;
-  readonly name: string;
-  readonly fileName: string;
-  readonly size: number;
-  readonly addedAt: number;
-  readonly lastPlayedAt: number | null;
-}
-
-interface LibrarySchema extends DBSchema {
-  meta: { key: string; value: RomMeta };
-  data: { key: string; value: Blob };
-}
-
-const DB_NAME = 'onlemu-library';
-const DB_VERSION = 1;
-
+/** Biblioteca de ROMs do host: arquivos, identificação pelo catálogo e capas personalizadas. */
 export class RomLibrary {
-  private dbPromise: Promise<IDBPDatabase<LibrarySchema>> | null = null;
-
-  private db(): Promise<IDBPDatabase<LibrarySchema>> {
-    this.dbPromise ??= openDB<LibrarySchema>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        db.createObjectStore('meta', { keyPath: 'id' });
-        db.createObjectStore('data');
-      },
-    });
-    return this.dbPromise;
-  }
+  constructor(private readonly db: () => Promise<LibraryDb> = openLibraryDb) {}
 
   async list(): Promise<RomMeta[]> {
-    const all = await (await this.db()).getAll('meta');
-    return all.sort((a, b) => (b.lastPlayedAt ?? b.addedAt) - (a.lastPlayedAt ?? a.addedAt));
+    const db = await this.db();
+    const all = await db.getAll('meta');
+    // Entradas criadas antes do catálogo existir são identificadas agora, uma vez só.
+    const identified = await Promise.all(
+      all.map(async (meta) => {
+        if (meta.catalogName !== undefined) return meta;
+        const blob = await db.get('data', meta.id);
+        const updated: RomMeta = { ...meta, catalogName: blob ? await identifyN64Rom(blob) : null };
+        await db.put('meta', updated);
+        return updated;
+      }),
+    );
+    return identified.sort((a, b) => (b.lastPlayedAt ?? b.addedAt) - (a.lastPlayedAt ?? a.addedAt));
   }
 
   async add(file: File): Promise<RomMeta> {
-    const id = await sha1(file);
+    const id = await sha1Hex(file);
     const db = await this.db();
     const existing = await db.get('meta', id);
     if (existing) return existing;
@@ -51,6 +36,7 @@ export class RomLibrary {
       size: file.size,
       addedAt: Date.now(),
       lastPlayedAt: null,
+      catalogName: await identifyN64Rom(file),
     };
     const tx = db.transaction(['meta', 'data'], 'readwrite');
     await Promise.all([tx.objectStore('data').put(file, id), tx.objectStore('meta').put(meta), tx.done]);
@@ -66,15 +52,34 @@ export class RomLibrary {
     return new File([blob], meta.fileName);
   }
 
+  /** Remove o jogo e tudo que é dele (capa e savestates). O save do cartucho fica com o EmulatorJS. */
   async remove(id: string): Promise<void> {
-    const tx = (await this.db()).transaction(['meta', 'data'], 'readwrite');
-    await Promise.all([tx.objectStore('meta').delete(id), tx.objectStore('data').delete(id), tx.done]);
+    const db = await this.db();
+    const stateIds = await db.getAllKeysFromIndex('stateMeta', 'byRom', id);
+    const tx = db.transaction(['meta', 'data', 'covers', 'stateMeta', 'stateData'], 'readwrite');
+    await Promise.all([
+      tx.objectStore('meta').delete(id),
+      tx.objectStore('data').delete(id),
+      tx.objectStore('covers').delete(id),
+      ...stateIds.flatMap((s) => [
+        tx.objectStore('stateMeta').delete(s),
+        tx.objectStore('stateData').delete(s),
+      ]),
+      tx.done,
+    ]);
   }
-}
 
-async function sha1(blob: Blob): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-1', await blob.arrayBuffer());
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+  async getCover(id: string): Promise<Blob | undefined> {
+    return (await this.db()).get('covers', id);
+  }
+
+  async setCover(id: string, image: Blob): Promise<void> {
+    await (await this.db()).put('covers', image, id);
+  }
+
+  async removeCover(id: string): Promise<void> {
+    await (await this.db()).delete('covers', id);
+  }
 }
 
 export interface StorageInfo {

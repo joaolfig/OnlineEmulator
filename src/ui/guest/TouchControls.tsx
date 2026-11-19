@@ -27,12 +27,20 @@ const LAYOUT: readonly (readonly [string, Button, number, number, number])[] = [
   ['C▶', 'CRIGHT', 5, 53, 40],
 ];
 
-export function TouchControls({ state }: { state: TouchState }) {
+/** No modo "só controle" a tela inteira é do controle, então os botões crescem. */
+const LARGE_SCALE = 1.35;
+
+export function TouchControls({ state, large = false }: { state: TouchState; large?: boolean }) {
+  const scale = large ? LARGE_SCALE : 1;
   return (
     <div class="touch">
       <Stick state={state} />
       {LAYOUT.map(([label, button, right, bottom, size]) => (
-        <TouchButton key={button} {...{ label, button, right, bottom, size, state }} />
+        <TouchButton
+          key={button}
+          {...{ label, button, right, bottom, state }}
+          size={Math.round(size * scale)}
+        />
       ))}
     </div>
   );

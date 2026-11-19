@@ -4,11 +4,21 @@
 /** Porta do console (0 = P1) ou null para espectador. */
 export type Port = number | null;
 
+/**
+ * Como o aparelho participa:
+ * - play: recebe vídeo e controla;
+ * - controller: só controla (sem vídeo, ex.: celular quando todos olham a mesma TV);
+ * - watch: só exibe o jogo (espectador fixo, ex.: aparelho ligado na TV).
+ */
+export const DEVICE_MODES = ['play', 'controller', 'watch'] as const;
+export type DeviceMode = (typeof DEVICE_MODES)[number];
+
 export interface Participant {
   readonly id: string;
   readonly name: string;
   readonly port: Port;
   readonly isHost: boolean;
+  readonly mode: DeviceMode;
 }
 
 export interface RoomState {
@@ -19,7 +29,7 @@ export interface RoomState {
 export const HOST_ID = 'host';
 
 export function createRoom(hostName: string, portCount: number): RoomState {
-  return { portCount, participants: [{ id: HOST_ID, name: hostName, port: 0, isHost: true }] };
+  return { portCount, participants: [{ id: HOST_ID, name: hostName, port: 0, isHost: true, mode: 'play' }] };
 }
 
 export const findParticipant = (state: RoomState, id: string): Participant | undefined =>
@@ -33,10 +43,11 @@ export function freePort(state: RoomState): Port {
   return null;
 }
 
-/** Entra na primeira porta livre, ou como espectador se a sala estiver cheia. */
-export function join(state: RoomState, id: string, name: string): RoomState {
+/** Entra na primeira porta livre, ou como espectador se a sala estiver cheia (ou se só for assistir). */
+export function join(state: RoomState, id: string, name: string, mode: DeviceMode = 'play'): RoomState {
   if (findParticipant(state, id)) return state;
-  const participant: Participant = { id, name, port: freePort(state), isHost: false };
+  const port = mode === 'watch' ? null : freePort(state);
+  const participant: Participant = { id, name, port, isHost: false, mode };
   return { ...state, participants: [...state.participants, participant] };
 }
 
@@ -50,6 +61,8 @@ export function setPort(state: RoomState, id: string, port: Port): RoomState {
   const who = findParticipant(state, id);
   if (!who || who.port === port) return state;
   if (port !== null && (!Number.isInteger(port) || port < 0 || port >= state.portCount)) return state;
+  // Um aparelho que só exibe o jogo não tem controles: não faz sentido ocupar uma porta.
+  if (port !== null && who.mode === 'watch') return state;
   const occupant = port === null ? undefined : state.participants.find((p) => p.port === port);
   return {
     ...state,

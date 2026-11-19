@@ -56,6 +56,20 @@ describe('room', () => {
     expect(setPort(room, 'zzz', 2)).toBe(room);
   });
 
+  it('aparelho "só tela" entra como espectador mesmo com porta livre e não pode pegar porta', () => {
+    let room = join(createRoom('Host', 4), 'tv', 'TV', 'watch');
+    expect(portOf(room, 'tv')).toBeNull();
+    expect(setPort(room, 'tv', 1)).toBe(room);
+    // E não rouba a vaga de quem chega depois.
+    room = join(room, 'a', 'A');
+    expect(portOf(room, 'a')).toBe(1);
+  });
+
+  it('aparelho "só controle" ocupa porta normalmente', () => {
+    const room = join(createRoom('Host', 4), 'cel', 'Cel', 'controller');
+    expect(portOf(room, 'cel')).toBe(1);
+  });
+
   it('portChanges lista as duas pontas de uma troca', () => {
     const before = join(createRoom('Host', 4), 'a', 'A');
     const after = setPort(before, 'a', 0);

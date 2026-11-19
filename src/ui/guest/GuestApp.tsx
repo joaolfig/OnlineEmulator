@@ -5,12 +5,16 @@ import { GuestSession } from '../../app/guest/guestSession';
 import { startInputLoop } from '../../app/inputLoop';
 import { isDebugEnabled, Logger } from '../../app/logger';
 import { config } from '../../config';
+import { DEVICE_MODES, type DeviceMode } from '../../core/room/room';
 import { isValidRoomCode, normalizeRoomCode } from '../../core/util/roomCode';
-import { t } from '../strings';
+import { PORT_COLORS, t } from '../strings';
 import { createTouchState, readTouch, TouchControls } from './TouchControls';
 
 const NAME_KEY = 'name';
+const MODE_KEY = 'mode';
 const isTouchDevice = () => matchMedia('(pointer: coarse)').matches;
+const isDeviceMode = (value: string | null): value is DeviceMode =>
+  (DEVICE_MODES as readonly (string | null)[]).includes(value);
 
 export function GuestApp() {
   const logger = useMemo(() => new Logger(isDebugEnabled()), []);
@@ -19,11 +23,11 @@ export function GuestApp() {
   // Sai da sala ao fechar a página ou trocar de sessão.
   useEffect(() => () => session?.leave(), [session]);
 
-  const join = (code: string, name: string) => {
+  const join = (code: string, name: string, mode: DeviceMode) => {
     session?.leave();
     const s = new GuestSession({ transport: new PeerJsGuestTransport(), logger });
     setSession(s);
-    void s.join(code, name);
+    void s.join(code, name, mode);
   };
 
   const status = session?.status.value ?? 'idle';
@@ -42,7 +46,7 @@ export function GuestApp() {
 interface JoinFormProps {
   readonly busy: boolean;
   readonly error: string | null;
-  readonly onJoin: (code: string, name: string) => void;
+  readonly onJoin: (code: string, name: string, mode: DeviceMode) => void;
 }
 
 function JoinForm({ busy, error, onJoin }: JoinFormProps) {
@@ -50,6 +54,10 @@ function JoinForm({ busy, error, onJoin }: JoinFormProps) {
     normalizeRoomCode(new URLSearchParams(location.search).get('r') ?? ''),
   );
   const [name, setName] = useState(() => readPreference(NAME_KEY) ?? '');
+  const [mode, setMode] = useState<DeviceMode>(() => {
+    const saved = readPreference(MODE_KEY);
+    return isDeviceMode(saved) ? saved : 'play';
+  });
   const [touched, setTouched] = useState(false);
   const valid = isValidRoomCode(normalizeRoomCode(code), config.roomCodeLength);
 
@@ -59,7 +67,8 @@ function JoinForm({ busy, error, onJoin }: JoinFormProps) {
     if (!valid) return;
     const finalName = name.trim().slice(0, config.maxNameLength) || 'Jogador';
     writePreference(NAME_KEY, finalName);
-    onJoin(normalizeRoomCode(code), finalName);
+    writePreference(MODE_KEY, mode);
+    onJoin(normalizeRoomCode(code), finalName, mode);
   };
 
   return (
@@ -84,12 +93,24 @@ function JoinForm({ busy, error, onJoin }: JoinFormProps) {
             onInput={(e) => setName(e.currentTarget.value)}
           />
         </label>
+        <fieldset class="mode-picker">
+          <legend>{t.guest.modeQuestion}</legend>
+          {DEVICE_MODES.map((m) => (
+            <label key={m} class={`mode-option${mode === m ? ' selected' : ''}`}>
+              <input type="radio" name="mode" value={m} checked={mode === m} onChange={() => setMode(m)} />
+              <span>
+                <strong>{t.guest.modes[m].label}</strong>
+                <span class="muted small">{t.guest.modes[m].hint}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
         <button class="primary" type="submit" disabled={busy}>
           {busy ? t.guest.connecting : t.guest.join}
         </button>
         {touched && !valid && <p class="err">{t.guest.invalidCode}</p>}
         {error && <p class="err">{error}</p>}
-        <p class="muted">{t.guest.controlsHint}</p>
+        {mode !== 'watch' && <p class="muted">{t.guest.controlsHint}</p>}
       </form>
     </main>
   );
@@ -100,7 +121,11 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
   const touch = useMemo(createTouchState, []);
   const stream = session.stream.value;
   const port = session.port.value;
-  const showTouch = useMemo(isTouchDevice, []);
+  const mode = session.mode;
+  const isTouch = useMemo(isTouchDevice, []);
+  const hasPort = typeof port === 'number';
+  const showVideo = mode !== 'controller';
+  const showTouch = isTouch && mode !== 'watch' && hasPort;
 
   useEffect(() => {
     const el = video.current;
@@ -113,10 +138,10 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
     });
   }, [stream]);
 
-  useEffect(
-    () => startInputLoop((pad) => session.tick(pad), showTouch ? [() => readTouch(touch)] : []),
-    [session, touch, showTouch],
-  );
+  useEffect(() => {
+    if (mode === 'watch') return;
+    return startInputLoop((pad) => session.tick(pad), isTouch ? [() => readTouch(touch)] : []);
+  }, [session, touch, isTouch, mode]);
 
   const fullscreen = async () => {
     try {
@@ -129,22 +154,32 @@ function Stage({ session, onRejoin }: { session: GuestSession; onRejoin: () => v
     }
   };
 
+  const playerColor = hasPort ? PORT_COLORS[port % PORT_COLORS.length] : undefined;
+
   return (
-    <div class="stage">
-      <video ref={video} playsInline autoplay />
-      {showTouch && <TouchControls state={touch} />}
+    <div class={`stage${mode === 'controller' ? ' controller-mode' : ''}`}>
+      {showVideo && <video ref={video} playsInline autoplay />}
+      {mode === 'controller' && (
+        <div class="player-badge" style={{ color: playerColor }} aria-hidden="true">
+          {hasPort ? t.guest.playerBadge(port) : '…'}
+        </div>
+      )}
+      {showTouch && <TouchControls state={touch} large={mode === 'controller'} />}
       <div class="hud">
-        <span class="pill" data-testid="who">
+        <span class="pill" data-testid="who" style={{ borderColor: playerColor }}>
           {port === undefined ? t.guest.connecting : t.guest.you(port)}
         </span>
         <span class="pill mono">
-          ping {session.rttMs.value ?? '?'} ms · {session.fps.value ?? '?'} fps
+          ping {session.rttMs.value ?? '?'} ms{showVideo && ` · ${session.fps.value ?? '?'} fps`}
         </span>
         <span class="grow" />
         <button onClick={() => void fullscreen()} aria-label={t.guest.fullscreen}>
           ⛶
         </button>
       </div>
+      {mode !== 'watch' && port === null && session.status.value === 'connected' && (
+        <div class="overlay-message">{t.guest.waitingForPort}</div>
+      )}
       {session.status.value === 'disconnected' && (
         <div class="overlay-message">
           <span>{t.guest.disconnected}</span>

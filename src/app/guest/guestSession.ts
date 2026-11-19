@@ -16,7 +16,7 @@ import {
   type LobbyPlayer,
 } from '../../core/protocol/messages';
 import { nextSeq } from '../../core/protocol/seq';
-import type { Port } from '../../core/room/room';
+import type { DeviceMode, Port } from '../../core/room/room';
 import type { Logger } from '../logger';
 
 export type GuestStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -39,6 +39,9 @@ export class GuestSession {
   readonly rttMs = signal<number | null>(null);
   readonly fps = signal<number | null>(null);
 
+  /** Como este aparelho participa (definido ao entrar). */
+  mode: DeviceMode = 'play';
+
   private link: Link | null = null;
   private readonly unsubscribe: Unsubscribe[] = [];
   private readonly timers: ReturnType<typeof setInterval>[] = [];
@@ -51,10 +54,11 @@ export class GuestSession {
     this.now = deps.now ?? (() => performance.now());
   }
 
-  async join(roomCode: string, name: string): Promise<void> {
+  async join(roomCode: string, name: string, mode: DeviceMode = 'play'): Promise<void> {
     const { transport, logger } = this.deps;
     this.status.value = 'connecting';
     this.error.value = null;
+    this.mode = mode;
     this.unsubscribe.push(transport.onMedia((stream, pc) => this.handleMedia(stream, pc)));
     try {
       this.link = await transport.join(roomCode);
@@ -73,7 +77,7 @@ export class GuestSession {
         }
       }),
     );
-    link.sendControl({ type: 'hello', v: PROTOCOL_VERSION, name } satisfies GuestMessage);
+    link.sendControl({ type: 'hello', v: PROTOCOL_VERSION, name, mode } satisfies GuestMessage);
     this.timers.push(
       setInterval(
         () => link.sendControl({ type: 'ping', ts: this.now() } satisfies GuestMessage),

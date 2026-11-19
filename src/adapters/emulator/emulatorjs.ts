@@ -88,6 +88,12 @@ export class EmulatorJSAdapter implements Emulator {
       get saveExtension() {
         return gm.getSaveFilePath().split('.').pop() ?? 'sav';
       },
+      flushSave: () =>
+        new Promise<void>((resolve, reject) => {
+          gm.saveSaveFiles();
+          // A pasta de saves é IDBFS: syncfs(false) só resolve quando o IndexedDB terminou de gravar.
+          gm.FS.syncfs(false, (err) => (err ? reject(new Error(String(err))) : resolve()));
+        }),
       exportSave: () => gm.getSaveFile(),
       importSave: (data) => {
         const path = gm.getSaveFilePath();

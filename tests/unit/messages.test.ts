@@ -2,15 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { parseGuestMessage, parseHostMessage, PROTOCOL_VERSION } from '../../src/core/protocol/messages';
 
 describe('parseGuestMessage', () => {
-  it('aceita hello e limpa espaços do nome', () => {
+  it('aceita hello, limpa espaços do nome e assume o modo "play" se não vier', () => {
     expect(parseGuestMessage({ type: 'hello', v: PROTOCOL_VERSION, name: '  Ana  ' })).toEqual({
       type: 'hello',
       v: PROTOCOL_VERSION,
       name: 'Ana',
+      mode: 'play',
     });
   });
 
+  it('aceita os modos de aparelho', () => {
+    for (const mode of ['play', 'controller', 'watch']) {
+      expect(parseGuestMessage({ type: 'hello', v: 1, name: 'Ana', mode })).toMatchObject({ mode });
+    }
+  });
+
   it.each([
+    ['modo desconhecido', { type: 'hello', v: 1, name: 'Ana', mode: 'admin' }],
     ['tipo desconhecido', { type: 'hack' }],
     ['nome vazio', { type: 'hello', v: 1, name: '   ' }],
     ['nome longo demais', { type: 'hello', v: 1, name: 'x'.repeat(100) }],

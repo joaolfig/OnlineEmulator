@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { config } from '../../config';
+import { DEVICE_MODES } from '../room/room';
 
 // Mensagens do canal de controle (JSON, confiável). Os inputs vão por outro canal (inputCodec.ts).
 // Toda mensagem recebida da rede passa por estes schemas antes de ser usada.
@@ -13,7 +14,13 @@ const Name = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(config.max
 // ---------- Convidado → Host ----------
 
 export const GuestMessageSchema = v.variant('type', [
-  v.object({ type: v.literal('hello'), v: v.number(), name: Name }),
+  v.object({
+    type: v.literal('hello'),
+    v: v.number(),
+    name: Name,
+    // Opcional para continuar compatível com convidados que ainda não mandam o modo.
+    mode: v.optional(v.picklist(DEVICE_MODES), 'play'),
+  }),
   v.object({ type: v.literal('ping'), ts: Timestamp }),
   v.object({ type: v.literal('rtt'), ms: v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(60_000)) }),
 ]);

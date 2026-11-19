@@ -6,7 +6,7 @@ import { HostSession } from '../../src/app/host/hostSession';
 import { Logger } from '../../src/app/logger';
 import { buttonMask, EMPTY_PAD, type PadState } from '../../src/core/input/pad';
 import { encodeInput } from '../../src/core/protocol/inputCodec';
-import { HOST_ID } from '../../src/core/room/room';
+import { HOST_ID, type DeviceMode } from '../../src/core/room/room';
 
 /** Emulador de mentira que só registra o que recebeu. */
 class RecordingEmulator implements Emulator {
@@ -51,10 +51,10 @@ async function setup() {
   await host.open(FAKE_STREAM);
   const code = host.roomCode.value ?? '';
 
-  const addGuest = async (name: string) => {
+  const addGuest = async (name: string, mode: DeviceMode = 'play') => {
     const guest = new GuestSession({ transport: network.createGuest(), logger, now });
     sessions.push({ close: () => guest.leave() });
-    await guest.join(code, name);
+    await guest.join(code, name, mode);
     await flush();
     return guest;
   };
@@ -160,6 +160,27 @@ describe('host + convidados (transporte em memória)', () => {
     expect(received).toContainEqual({ type: 'error', code: 'version-mismatch' });
     expect(link.isOpen).toBe(false);
     expect(host.room.value.participants).toHaveLength(1);
+  });
+
+  it('aparelho "só controle" ganha porta e controla, mas não recebe vídeo', async () => {
+    const { emulator, addGuest } = await setup();
+    const phone = await addGuest('Celular', 'controller');
+    expect(phone.port.value).toBe(1);
+    expect(phone.stream.value).toBeNull();
+    phone.tick(A);
+    expect(emulator.inputs.get(1)).toEqual(A);
+  });
+
+  it('aparelho "só assistir" recebe vídeo como espectador e não ocupa porta', async () => {
+    const { host, addGuest } = await setup();
+    const tv = await addGuest('TV', 'watch');
+    expect(tv.port.value).toBeNull();
+    expect(tv.stream.value).toBe(FAKE_STREAM);
+    const player = await addGuest('Ana');
+    expect(player.port.value).toBe(1);
+    // O host não consegue colocar a TV numa porta.
+    host.setPort(host.room.value.participants.find((p) => p.name === 'TV')?.id ?? '', 2);
+    expect(tv.port.value).toBeNull();
   });
 
   it('sala inexistente gera erro amigável', async () => {

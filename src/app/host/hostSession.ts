@@ -21,6 +21,7 @@ import {
   portChanges,
   portOf,
   setPort,
+  type DeviceMode,
   type Port,
   type RoomState,
 } from '../../core/room/room';
@@ -180,7 +181,7 @@ export class HostSession {
     }
     switch (message.type) {
       case 'hello':
-        return this.handleHello(guest, message.v, message.name);
+        return this.handleHello(guest, message.v, message.name, message.mode);
       case 'ping':
         return guest.link.sendControl({ type: 'pong', ts: message.ts } satisfies HostMessage);
       case 'rtt':
@@ -189,7 +190,7 @@ export class HostSession {
     }
   }
 
-  private handleHello(guest: GuestConnection, version: number, name: string): void {
+  private handleHello(guest: GuestConnection, version: number, name: string, mode: DeviceMode): void {
     if (guest.joined) return;
     if (version !== PROTOCOL_VERSION) {
       guest.link.sendControl({ type: 'error', code: 'version-mismatch' } satisfies HostMessage);
@@ -197,12 +198,14 @@ export class HostSession {
       return;
     }
     const id = guest.link.peerId;
-    this.room.value = join(this.room.value, id, name);
+    this.room.value = join(this.room.value, id, name, mode);
     guest.joined = true;
     const port = portOf(this.room.value, id);
     guest.link.sendControl({ type: 'welcome', port } satisfies HostMessage);
-    this.deps.logger.success(`${name} entrou como ${port === null ? 'espectador' : `P${port + 1}`}`);
-    if (this.stream) {
+    const role = port === null ? 'espectador' : `P${port + 1}`;
+    this.deps.logger.success(`${name} entrou como ${role}${mode === 'controller' ? ' (só controle)' : ''}`);
+    // Aparelho só de controle não recebe vídeo: economiza o processador do host, o Wi-Fi e a bateria.
+    if (this.stream && mode !== 'controller') {
       guest.media = this.deps.transport.sendMedia(id, this.stream);
       const pc = guest.media.pc;
       pc?.addEventListener('connectionstatechange', () => {

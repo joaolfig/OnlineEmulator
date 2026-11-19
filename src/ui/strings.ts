@@ -1,7 +1,7 @@
 // Todos os textos da interface num só lugar (facilita revisar e traduzir).
 
 import type { GuestErrorCode } from '../app/guest/guestSession';
-import type { Port } from '../core/room/room';
+import type { DeviceMode, Port } from '../core/room/room';
 
 export const t = {
   appName: 'OnlineEmulator',
@@ -20,18 +20,29 @@ export const t = {
     empty: 'Nenhum jogo ainda. Adicione a ROM do seu jogo (ela fica salva só neste navegador).',
     addRom: 'Adicionar ROM',
     play: 'Jogar',
+    playFromStart: 'Jogar do início',
+    resume: 'Continuar',
+    savedAt: (date: string) => `Salvo em ${date}`,
+    olderStates: 'Estados salvos',
+    stateFromOtherVersion: 'Salvo numa versão anterior do emulador: pode não abrir.',
+    changeCover: 'Trocar capa',
+    defaultCover: 'Capa padrão',
     remove: 'Remover',
-    confirmRemove: (name: string) => `Remover "${name}" da biblioteca?`,
+    confirmRemove: (name: string) =>
+      `Remover "${name}" da biblioteca? Os estados salvos ("Continuar") deste jogo também serão apagados.`,
+    notInCatalog: 'Jogo não encontrado no catálogo',
     testMode: 'Modo teste (sem ROM)',
     testModeHint: 'Uma tela de teste no lugar do jogo, para testar a conexão com os amigos.',
     storageUsed: (used: string, quota: string) => `${used} usados de ${quota} disponíveis`,
     notPersisted: 'O navegador pode apagar a biblioteca se o disco encher.',
     persist: 'Proteger biblioteca',
     adding: 'Adicionando…',
+    credits: 'Nomes e capas: libretro-database e libretro-thumbnails (CC-BY-SA 4.0).',
   },
 
   host: {
     loading: 'Carregando o emulador…',
+    resuming: 'Continuando de onde parou…',
     room: 'Sala',
     openingRoom: 'Abrindo sala…',
     roomError: 'Não foi possível abrir a sala. Verifique a internet e recarregue a página.',
@@ -42,12 +53,20 @@ export const t = {
     portHint: 'Escolher uma porta ocupada troca os dois jogadores de lugar.',
     hostName: 'Você (host)',
     spectator: 'Espectador',
+    modeLabel: { play: '', controller: '🎮 só controle', watch: '📺 tela' } satisfies Record<
+      DeviceMode,
+      string
+    >,
     video: 'Vídeo enviado',
     bitrate: 'Qualidade',
     fps: 'FPS',
     preview: 'Preview do que os amigos veem',
     showPreview: 'Mostrar preview',
     saves: 'Saves',
+    autoSaveStatus: (cartridge: string, state: string) =>
+      `Cartucho salvo: ${cartridge} · Estado salvo: ${state}`,
+    never: 'ainda não',
+    saveNow: 'Salvar agora',
     exportSave: 'Baixar save',
     importSave: 'Importar save',
     exportState: 'Baixar savestate',
@@ -57,6 +76,8 @@ export const t = {
     log: 'Atividade',
     keepVisible: 'Mantenha esta aba visível: em segundo plano o navegador pausa o jogo para todos.',
     backToLibrary: 'Voltar à biblioteca',
+    saveAndExit: 'Sair e salvar',
+    saving: 'Salvando…',
     controlsHint:
       'Seus controles: WASD/setas, K = A, J = B, L = Z, Enter = Start, Q/E = L/R, T/F/G/H = C. Controle USB/Bluetooth também funciona.',
   },
@@ -68,7 +89,18 @@ export const t = {
     join: 'Entrar',
     connecting: 'Conectando…',
     invalidCode: 'O código tem 6 letras e números.',
+    modeQuestion: 'Como este aparelho vai participar?',
+    modes: {
+      play: { label: 'Jogar', hint: 'Vê o jogo e controla.' },
+      controller: {
+        label: 'Só controle',
+        hint: 'Para quando todos olham a mesma TV: o celular vira só um controle, sem vídeo nem som.',
+      },
+      watch: { label: 'Só assistir', hint: 'Mostra o jogo sem controles, ex.: um aparelho ligado na TV.' },
+    } satisfies Record<DeviceMode, { label: string; hint: string }>,
     you: (port: Port) => (port === null ? 'Espectador' : `Você é o P${port + 1}`),
+    playerBadge: (port: number) => `P${port + 1}`,
+    waitingForPort: 'Sala cheia: aguardando o host liberar uma porta.',
     disconnected: 'Desconectado do host.',
     rejoin: 'Entrar de novo',
     fullscreen: 'Tela cheia',
@@ -83,6 +115,9 @@ export const t = {
   },
 } as const;
 
+/** Cor de cada porta, a mesma usada no jogo de teste e nos indicadores. */
+export const PORT_COLORS = ['#f0506e', '#5b8cff', '#f5a524', '#3ecf8e'] as const;
+
 export function formatBytes(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let value = bytes;
@@ -93,3 +128,9 @@ export function formatBytes(bytes: number): string {
   }
   return `${value.toFixed(value < 10 && unit > 0 ? 1 : 0)} ${units[unit]}`;
 }
+
+export const formatDateTime = (time: number): string =>
+  new Date(time).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+export const formatTime = (time: number | null): string =>
+  time === null ? t.host.never : new Date(time).toLocaleTimeString('pt-BR', { timeStyle: 'short' });

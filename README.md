@@ -10,7 +10,12 @@ O plano completo está em [`PLANO.md`](PLANO.md).
 
 1. **Host (PC com Edge ou Chrome):** abra o site, clique em **Criar sala**, adicione a ROM do seu jogo (ela fica salva só no seu navegador) e clique em **Jogar**.
 2. Compartilhe o link ou o QR code da sala.
-3. **Amigos:** abrem o link, digitam o nome e tocam em **Entrar**.
+3. **Amigos:** abrem o link, digitam o nome, escolhem como o aparelho participa e tocam em **Entrar**:
+   - **Jogar:** vê o jogo e controla;
+   - **Só controle:** o celular vira só um controle, sem vídeo nem som (para quando todos olham a mesma TV);
+   - **Só assistir:** mostra o jogo sem controles (ex.: um aparelho ligado na TV).
+
+O progresso fica salvo no navegador do host: o save do cartucho é gravado a cada minuto, e o botão **Continuar** na biblioteca volta exatamente para onde a partida parou. Use **Sair e salvar** para sair com segurança.
 
 Controles no teclado: WASD/setas (Shift = meia força), K = A, J = B, L = Z, Enter = Start, Q/E = L/R, T/F/G/H = C-buttons. Controles USB ou Bluetooth também funcionam, e no celular aparecem botões na tela.
 
@@ -49,6 +54,8 @@ src/
 - O CI roda todas as verificações, e o deploy no Pages só acontece se o CI passar.
 
 A pasta `spike/` é o protótipo descartável da Fase 0, mantido como referência.
+
+O catálogo de jogos (`src/data/n64-catalog.json`) é gerado a partir do [libretro-database](https://github.com/libretro/libretro-database) (CC-BY-SA 4.0) com `npm run catalog:update`. As capas vêm do servidor de thumbnails do libretro.
 
 ## Licença
 
