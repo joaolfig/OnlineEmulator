@@ -7,7 +7,7 @@ import { AVATARS, REACTION_IDS } from '../social';
 // Mensagens do canal de controle (JSON, confiável). Os inputs vão por outro canal (inputCodec.ts).
 // Toda mensagem recebida da rede passa por estes schemas antes de ser usada.
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 const Port = v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(config.portCount - 1)));
 const Timestamp = v.pipe(v.number(), v.finite(), v.minValue(0));

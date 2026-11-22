@@ -1,6 +1,14 @@
 import { useRef, useState } from 'preact/hooks';
 import type { ControllerLayout } from '../../core/input/layout';
-import { buttonMask, clampAxis, AXIS_LIMIT, type Button, type PadState } from '../../core/input/pad';
+import {
+  buttonMask,
+  clampAxis,
+  dpadMask,
+  AXIS_LIMIT,
+  DPAD_MASK,
+  type Button,
+  type PadState,
+} from '../../core/input/pad';
 
 /** Estado mutável do touch, lido a cada frame pelo laço de input (sem re-render por toque). */
 export interface TouchState {
@@ -31,24 +39,64 @@ const N64_BUTTONS: readonly ButtonSpec[] = [
   ['C▶', 'CRIGHT', 5, 53, 40],
 ];
 
-/**
- * Consoles 2D: losango A/B/X/Y (como no SNES), Select, Start, L e R. O analógico da esquerda vira
- * direcional. Os botões do app viram os do console: C▲ = X, C◀ = Y, Z = Select (ver systems.ts).
- */
-const RETROPAD_BUTTONS: readonly ButtonSpec[] = [
-  ['X', 'CUP', 13, 40, 58],
-  ['A', 'A', 4, 26, 64],
-  ['B', 'B', 13, 11, 64],
-  ['Y', 'CLEFT', 22, 26, 58],
-  ['Start', 'START', 44, 4, 52],
-  ['Select', 'Z', 55, 4, 52],
-  ['L', 'L', 88, 70, 52],
-  ['R', 'R', 4, 70, 52],
+// [rótulo, botão, right %, bottom %, tamanho %], tudo relativo ao bloco de botões (que é quadrado).
+type FaceSpec = readonly [string, Button, number, number, number];
+type MenuSpec = readonly [string, Button];
+
+interface RetroLayout {
+  readonly face: readonly FaceSpec[];
+  readonly menu: readonly MenuSpec[];
+  readonly shoulders?: boolean;
+}
+
+// Os botões do app viram os do console pelo índice do RetroPad (ver systems.ts):
+// A = 8, B = 0, C◀ = 1, C▲ = 9, L = 10, R = 11, Z = 2 (Select/Mode), START = 3.
+const TWO_BUTTONS = (left: MenuSpec, right: MenuSpec): readonly FaceSpec[] => [
+  [left[0], left[1], 52, 12, 44],
+  [right[0], right[1], 2, 40, 44],
 ];
 
-const BUTTONS_BY_LAYOUT: Readonly<Record<ControllerLayout, readonly ButtonSpec[]>> = {
-  n64: N64_BUTTONS,
-  retropad: RETROPAD_BUTTONS,
+const SELECT_START: readonly MenuSpec[] = [
+  ['Select', 'Z'],
+  ['Start', 'START'],
+];
+
+const RETRO_LAYOUTS: Readonly<Record<Exclude<ControllerLayout, 'n64'>, RetroLayout>> = {
+  snes: {
+    face: [
+      ['X', 'CUP', 33.5, 67, 33],
+      ['A', 'A', 0, 33.5, 33],
+      ['B', 'B', 33.5, 0, 33],
+      ['Y', 'CLEFT', 67, 33.5, 33],
+    ],
+    menu: SELECT_START,
+    shoulders: true,
+  },
+  nes: { face: TWO_BUTTONS(['B', 'B'], ['A', 'A']), menu: SELECT_START },
+  gba: { face: TWO_BUTTONS(['B', 'B'], ['A', 'A']), menu: SELECT_START, shoulders: true },
+  md: {
+    face: [
+      ['X', 'L', 68, 58, 30],
+      ['Y', 'CUP', 35, 58, 30],
+      ['Z', 'R', 2, 58, 30],
+      ['A', 'CLEFT', 68, 18, 30],
+      ['B', 'B', 35, 18, 30],
+      ['C', 'A', 2, 18, 30],
+    ],
+    menu: [
+      ['Mode', 'Z'],
+      ['Start', 'START'],
+    ],
+  },
+  sms: { face: TWO_BUTTONS(['1', 'B'], ['2', 'A']), menu: [['Pause', 'START']] },
+  gg: { face: TWO_BUTTONS(['1', 'B'], ['2', 'A']), menu: [['Start', 'START']] },
+  pce: {
+    face: TWO_BUTTONS(['II', 'B'], ['I', 'A']),
+    menu: [
+      ['Select', 'Z'],
+      ['Run', 'START'],
+    ],
+  },
 };
 
 /** No modo "só controle" a tela inteira é do controle, então os botões crescem. */
@@ -61,15 +109,109 @@ interface TouchControlsProps {
 }
 
 export function TouchControls({ state, large = false, layout = 'n64' }: TouchControlsProps) {
+  // Segurar um botão não pode abrir o menu de contexto do navegador.
+  const noMenu = (e: Event) => e.preventDefault();
+  if (layout !== 'n64') {
+    const { face, menu, shoulders } = RETRO_LAYOUTS[layout];
+    return (
+      <div class={`touch touch-retro${large ? ' large' : ''}`} onContextMenu={noMenu}>
+        <Dpad state={state} />
+        <div class="touch-face">
+          {face.map(([label, button, right, bottom, size]) => (
+            <PressButton
+              key={button}
+              {...{ label, button, state }}
+              style={{
+                right: `${right}%`,
+                bottom: `${bottom}%`,
+                width: `${size}%`,
+                height: `${size}%`,
+              }}
+            />
+          ))}
+        </div>
+        <div class="touch-menu">
+          {menu.map(([label, button]) => (
+            <PressButton key={button} {...{ label, button, state }} extraClass="pill-btn" />
+          ))}
+        </div>
+        {shoulders && (
+          <>
+            <PressButton label="L" button="L" state={state} extraClass="pill-btn shoulder left" />
+            <PressButton label="R" button="R" state={state} extraClass="pill-btn shoulder right" />
+          </>
+        )}
+      </div>
+    );
+  }
   const scale = large ? LARGE_SCALE : 1;
   return (
-    <div class="touch">
+    <div class="touch" onContextMenu={noMenu}>
       <Stick state={state} />
-      {BUTTONS_BY_LAYOUT[layout].map(([label, button, right, bottom, size]) => (
-        <TouchButton
-          key={button}
-          {...{ label, button, right, bottom, state }}
-          size={Math.round(size * scale)}
+      {N64_BUTTONS.map(([label, button, right, bottom, size]) => {
+        const px = Math.round(size * scale);
+        return (
+          <PressButton
+            key={button}
+            {...{ label, button, state }}
+            style={{
+              right: `${right}%`,
+              bottom: `${bottom}%`,
+              width: `${px}px`,
+              height: `${px}px`,
+              fontSize: `${Math.round(px / 3.2)}px`,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/** Direcional em cruz: responde no toque, deixa deslizar entre as direções e aceita diagonais. */
+function Dpad({ state }: { state: TouchState }) {
+  const pointer = useRef<number | null>(null);
+  const [active, setActive] = useState(0);
+
+  const press = (e: PointerEvent, el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+    const radius = rect.width / 2;
+    const mask = dpadMask(
+      (e.clientX - rect.left - radius) / radius,
+      (e.clientY - rect.top - rect.height / 2) / radius,
+    );
+    state.buttons = (state.buttons & ~DPAD_MASK) | mask;
+    setActive(mask);
+  };
+  const end = (e: PointerEvent) => {
+    if (pointer.current !== e.pointerId) return;
+    pointer.current = null;
+    state.buttons &= ~DPAD_MASK;
+    setActive(0);
+  };
+
+  return (
+    <div
+      class="touch-dpad"
+      data-testid="dpad"
+      onPointerDown={(e) => {
+        if (pointer.current !== null) return;
+        e.preventDefault();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        pointer.current = e.pointerId;
+        press(e, e.currentTarget);
+        navigator.vibrate?.(10);
+      }}
+      onPointerMove={(e) => {
+        if (pointer.current === e.pointerId) press(e, e.currentTarget);
+      }}
+      onPointerUp={end}
+      onPointerCancel={end}
+    >
+      {(['DUP', 'DDOWN', 'DLEFT', 'DRIGHT'] as const).map((direction) => (
+        <i
+          key={direction}
+          class={`arm ${direction.toLowerCase()}${active & buttonMask(direction) ? ' on' : ''}`}
         />
       ))}
     </div>
@@ -123,16 +265,15 @@ function Stick({ state }: { state: TouchState }) {
   );
 }
 
-interface TouchButtonProps {
+interface PressButtonProps {
   readonly label: string;
   readonly button: Button;
-  readonly right: number;
-  readonly bottom: number;
-  readonly size: number;
   readonly state: TouchState;
+  readonly style?: Readonly<Record<string, string>>;
+  readonly extraClass?: string;
 }
 
-function TouchButton({ label, button, right, bottom, size, state }: TouchButtonProps) {
+function PressButton({ label, button, state, style, extraClass }: PressButtonProps) {
   const [pressed, setPressed] = useState(false);
   const mask = buttonMask(button);
   const release = () => {
@@ -141,15 +282,9 @@ function TouchButton({ label, button, right, bottom, size, state }: TouchButtonP
   };
   return (
     <button
-      class={`touch-btn${pressed ? ' on' : ''}`}
+      class={`touch-btn${extraClass ? ` ${extraClass}` : ''}${pressed ? ' on' : ''}`}
       aria-label={label}
-      style={{
-        right: `${right}%`,
-        bottom: `${bottom}%`,
-        width: `${size}px`,
-        height: `${size}px`,
-        fontSize: `${Math.round(size / 3.2)}px`,
-      }}
+      style={style}
       onPointerDown={(e) => {
         e.preventDefault();
         state.buttons |= mask;

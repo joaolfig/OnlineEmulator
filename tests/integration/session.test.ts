@@ -6,6 +6,7 @@ import { HostSession, type HostSessionDeps } from '../../src/app/host/hostSessio
 import { Logger } from '../../src/app/logger';
 import { buttonMask, EMPTY_PAD, type PadState } from '../../src/core/input/pad';
 import { encodeInput } from '../../src/core/protocol/inputCodec';
+import { PROTOCOL_VERSION } from '../../src/core/protocol/messages';
 import { HOST_ID, type DeviceMode } from '../../src/core/room/room';
 import type { Avatar } from '../../src/core/social';
 
@@ -111,7 +112,7 @@ describe('host + convidados (transporte em memória)', () => {
   it('descarta pacotes antigos (seq repetido)', async () => {
     const { network, emulator, code } = await setup();
     const link = await network.createGuest().join(code);
-    link.sendControl({ type: 'hello', v: 1, name: 'Bot' });
+    link.sendControl({ type: 'hello', v: PROTOCOL_VERSION, name: 'Bot' });
     link.sendInput(encodeInput({ seq: 5, players: [{ local: 0, pad: A }] }));
     link.sendInput(encodeInput({ seq: 4, players: [{ local: 0, pad: EMPTY_PAD }] }));
     expect(emulator.inputs.get(1)).toEqual(A);
@@ -222,8 +223,8 @@ describe('host + convidados (transporte em memória)', () => {
   });
 
   it('convidado recebe o layout de botões do console', async () => {
-    const { addGuest } = await setup({ layout: 'retropad' });
-    expect((await addGuest('Ana')).layout.value).toBe('retropad');
+    const { addGuest } = await setup({ layout: 'snes' });
+    expect((await addGuest('Ana')).layout.value).toBe('snes');
     const n64 = await setup();
     expect((await n64.addGuest('Bia')).layout.value).toBe('n64');
   });

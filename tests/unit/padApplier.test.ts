@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PadApplier } from '../../src/adapters/emulator/padApplier';
 import { detectSystem } from '../../src/adapters/emulator/systems';
-import { buttonMask } from '../../src/core/input/pad';
+import { buttonMask, dpadMask, type Button } from '../../src/core/input/pad';
 
 const setup = () => {
   const calls: [number, number, number][] = [];
@@ -88,6 +88,36 @@ describe('PadApplier em consoles 2D (RetroPad)', () => {
     applier.apply(0, { buttons: 0, x: 30, y: 0 });
     expect(calls).toEqual([]);
   });
+});
+
+describe('direcional na tela', () => {
+  const mask = (...buttons: Button[]) => buttons.reduce((m, b) => m | buttonMask(b), 0);
+
+  it('centro não aperta nada', () => expect(dpadMask(0.05, -0.05)).toBe(0));
+
+  it.each([
+    [0, -1, mask('DUP')],
+    [0, 1, mask('DDOWN')],
+    [-1, 0, mask('DLEFT')],
+    [1, 0, mask('DRIGHT')],
+    [0.7, -0.7, mask('DUP', 'DRIGHT')],
+    [-0.7, 0.7, mask('DDOWN', 'DLEFT')],
+    [0.9, 0.2, mask('DRIGHT')],
+  ])('toque em (%d, %d)', (dx, dy, expected) => expect(dpadMask(dx, dy)).toBe(expected));
+});
+
+describe('layout de cada console', () => {
+  it.each([
+    ['jogo.sfc', 'snes'],
+    ['jogo.nes', 'nes'],
+    ['jogo.gb', 'nes'],
+    ['jogo.gba', 'gba'],
+    ['jogo.md', 'md'],
+    ['jogo.sms', 'sms'],
+    ['jogo.gg', 'gg'],
+    ['jogo.pce', 'pce'],
+    ['jogo.z64', 'n64'],
+  ])('%s → %s', (file, layout) => expect(detectSystem(file)?.layout).toBe(layout));
 });
 
 describe('detectSystem', () => {

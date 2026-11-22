@@ -60,24 +60,32 @@ export const N64_SYSTEM: SystemInfo = {
 const retro = (
   id: string,
   label: string,
+  layout: ControllerLayout,
   extensions: readonly string[],
   ports: number,
   thumbnails: SystemInfo['thumbnails'],
-): SystemInfo => ({ id, label, extensions, mapping: RETROPAD, layout: 'retropad', ports, thumbnails });
+): SystemInfo => ({ id, label, extensions, mapping: RETROPAD, layout, ports, thumbnails });
 
 export const SYSTEMS: readonly SystemInfo[] = [
   N64_SYSTEM,
-  retro('snes', 'Super Nintendo', ['sfc', 'smc'], 2, 'Nintendo - Super Nintendo Entertainment System'),
-  retro('nes', 'NES', ['nes'], 2, 'Nintendo - Nintendo Entertainment System'),
-  retro('gba', 'Game Boy Advance', ['gba'], 1, 'Nintendo - Game Boy Advance'),
-  retro('gb', 'Game Boy / Color', ['gb', 'gbc'], 1, {
+  retro(
+    'snes',
+    'Super Nintendo',
+    'snes',
+    ['sfc', 'smc'],
+    2,
+    'Nintendo - Super Nintendo Entertainment System',
+  ),
+  retro('nes', 'NES', 'nes', ['nes'], 2, 'Nintendo - Nintendo Entertainment System'),
+  retro('gba', 'Game Boy Advance', 'gba', ['gba'], 1, 'Nintendo - Game Boy Advance'),
+  retro('gb', 'Game Boy / Color', 'nes', ['gb', 'gbc'], 1, {
     gb: 'Nintendo - Game Boy',
     gbc: 'Nintendo - Game Boy Color',
   }),
-  retro('segaMD', 'Mega Drive', ['md', 'gen', 'smd'], 2, 'Sega - Mega Drive - Genesis'),
-  retro('segaMS', 'Master System', ['sms'], 2, 'Sega - Master System - Mark III'),
-  retro('segaGG', 'Game Gear', ['gg'], 1, 'Sega - Game Gear'),
-  retro('pce', 'PC Engine', ['pce'], 1, 'NEC - PC Engine - TurboGrafx 16'),
+  retro('segaMD', 'Mega Drive', 'md', ['md', 'gen', 'smd'], 2, 'Sega - Mega Drive - Genesis'),
+  retro('segaMS', 'Master System', 'sms', ['sms'], 2, 'Sega - Master System - Mark III'),
+  retro('segaGG', 'Game Gear', 'gg', ['gg'], 1, 'Sega - Game Gear'),
+  retro('pce', 'PC Engine', 'pce', ['pce'], 1, 'NEC - PC Engine - TurboGrafx 16'),
 ];
 
 export const systemById = (id: string | undefined): SystemInfo | null =>

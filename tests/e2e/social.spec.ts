@@ -26,10 +26,17 @@ test('convidado escolhe boneco e manda reação pelo teclado; host e convidado v
   await guest.keyboard.press('Digit1');
   await expect(guest.getByRole('menu')).toHaveCount(0);
 
-  for (const page of [host, guest]) {
-    const bubble = page.locator('.reaction-bubble').first();
-    await expect(bubble).toContainText('🦖');
-    await expect(bubble).toContainText('Ana');
-    await expect(bubble).toContainText('Kkkkkk');
-  }
+  // O balão some em poucos segundos: confere os dois aparelhos ao mesmo tempo, numa checagem só.
+  await Promise.all(
+    [host, guest].map((page) =>
+      expect(
+        page
+          .locator('.reaction-bubble')
+          .filter({ hasText: '🦖' })
+          .filter({ hasText: 'Ana' })
+          .filter({ hasText: 'Kkkkkk' })
+          .first(),
+      ).toBeVisible(),
+    ),
+  );
 });

@@ -38,10 +38,10 @@ describe('parseHostMessage', () => {
       port: 2,
       layout: 'n64',
     });
-    expect(parseHostMessage({ type: 'welcome', port: null, layout: 'retropad' })).toEqual({
+    expect(parseHostMessage({ type: 'welcome', port: null, layout: 'snes' })).toEqual({
       type: 'welcome',
       port: null,
-      layout: 'retropad',
+      layout: 'snes',
     });
     expect(parseHostMessage({ type: 'welcome', port: 1, layout: 'ps5' })).toBeNull();
   });

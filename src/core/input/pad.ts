@@ -60,6 +60,26 @@ export function mergePads(pads: readonly PadState[]): PadState {
   return { buttons, x, y };
 }
 
+export const DPAD_MASK = buttonMask('DUP') | buttonMask('DDOWN') | buttonMask('DLEFT') | buttonMask('DRIGHT');
+
+/** Centro do direcional na tela que não aperta nada (fração do raio). */
+const DPAD_DEAD_ZONE = 0.18;
+/** tan(22,5°): divide o círculo em 8 fatias iguais (4 direções e 4 diagonais). */
+const DPAD_DIAGONAL_RATIO = 0.414;
+
+/** Direções apertadas para um toque em (dx, dy), relativo ao centro do direcional (raio = 1). */
+export function dpadMask(dx: number, dy: number): number {
+  if (Math.hypot(dx, dy) < DPAD_DEAD_ZONE) return 0;
+  let mask = 0;
+  if (Math.abs(dx) > Math.abs(dy) * DPAD_DIAGONAL_RATIO) {
+    mask |= buttonMask(dx < 0 ? 'DLEFT' : 'DRIGHT');
+  }
+  if (Math.abs(dy) > Math.abs(dx) * DPAD_DIAGONAL_RATIO) {
+    mask |= buttonMask(dy < 0 ? 'DUP' : 'DDOWN');
+  }
+  return mask;
+}
+
 /** A partir de quanto o analógico conta como direcional apertado (metade do curso). */
 export const STICK_TO_DPAD_THRESHOLD = AXIS_LIMIT / 2;
 
